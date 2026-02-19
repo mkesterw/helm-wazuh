@@ -121,9 +121,11 @@ certs:
     pullPolicy: IfNotPresent
 
   # Imagem kubectl para criação dos Secrets
+  # Use "rancher/kubectl" em ambientes Rancher (imagem já disponível no cluster)
+  # Use "bitnami/kubectl:latest" para clusters genéricos com acesso ao Docker Hub
   kubectlImage:
-    repository: bitnami/kubectl
-    tag: "1.31.0"
+    repository: rancher/kubectl
+    tag: "v1.31.4"
     pullPolicy: IfNotPresent
 
 # =============================================================================

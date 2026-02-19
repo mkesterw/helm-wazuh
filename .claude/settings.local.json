@@ -5,7 +5,9 @@
       "WebFetch(domain:api.github.com)",
       "Bash(git clone:*)",
       "Bash(helm lint:*)",
-      "Bash(helm template:*)"
+      "Bash(helm template:*)",
+      "Bash(helm package:*)",
+      "Bash(helm repo index:*)"
     ]
   }
 }

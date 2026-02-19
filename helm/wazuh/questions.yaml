@@ -1,0 +1,238 @@
+categories:
+  - Security
+  - SIEM
+  - Monitoring
+
+questions:
+  # ==========================================================================
+  # VERSÃO DAS IMAGENS
+  # ==========================================================================
+  - variable: image.manager.tag
+    label: "Versão do Wazuh"
+    description: "Versão do Wazuh Manager, Indexer e Dashboard"
+    type: string
+    default: "5.0.0"
+    group: "Imagens"
+
+  # ==========================================================================
+  # CREDENCIAIS - ALTERAR ANTES DE INSTALAR EM PRODUÇÃO
+  # ==========================================================================
+  - variable: secrets.indexer.password
+    label: "Senha do Indexer (OpenSearch Admin)"
+    description: "Senha do usuário admin do Wazuh Indexer. ALTERE antes de usar em produção!"
+    type: password
+    required: true
+    default: "admin"
+    group: "Credenciais"
+
+  - variable: secrets.wazuhApi.password
+    label: "Senha da API do Wazuh"
+    description: "Senha do usuário wazuh-wui para acesso à API. ALTERE antes de usar em produção!"
+    type: password
+    required: true
+    default: "MyS3cr37P450r.*-"
+    group: "Credenciais"
+
+  - variable: secrets.authdPass
+    label: "Senha de Registro de Agentes (authd)"
+    description: "Senha usada pelos agentes para se registrar no Wazuh Manager"
+    type: password
+    required: true
+    default: "W4z0hAuthD!Pass"
+    group: "Credenciais"
+
+  - variable: secrets.clusterKey
+    label: "Chave do Cluster Wazuh"
+    description: "Chave de autenticação entre Master e Workers. DEVE ter exatamente 32 caracteres!"
+    type: password
+    required: true
+    default: "123a45bc67def891gh23i45jk67l8mn9"
+    group: "Credenciais"
+
+  # ==========================================================================
+  # STORAGE
+  # ==========================================================================
+  - variable: storageClass.create
+    label: "Criar StorageClass"
+    description: "Cria uma StorageClass dedicada para o Wazuh. Desative se já tiver uma."
+    type: boolean
+    default: true
+    group: "Storage"
+    show_subquestion_if: true
+    subquestions:
+      - variable: storageClass.provisioner
+        label: "Provisioner da StorageClass"
+        description: "Rancher RKE2/K3s: rancher.io/local-path | Longhorn: driver.longhorn.io | EKS: kubernetes.io/aws-ebs"
+        type: string
+        default: "rancher.io/local-path"
+
+  - variable: storageClass.name
+    label: "Nome da StorageClass"
+    description: "Nome da StorageClass a usar (existente ou nova)"
+    type: string
+    default: "wazuh-storage"
+    group: "Storage"
+
+  # ==========================================================================
+  # INDEXER (OPENSEARCH)
+  # ==========================================================================
+  - variable: indexer.replicas
+    label: "Réplicas do Indexer"
+    description: "Número de nós OpenSearch. Mínimo 1 para dev, 3 para produção (HA)."
+    type: enum
+    options:
+      - "1"
+      - "3"
+    default: "3"
+    group: "Indexer"
+
+  - variable: indexer.storage.size
+    label: "Storage do Indexer"
+    description: "Espaço em disco para cada nó do Indexer"
+    type: string
+    default: "10Gi"
+    group: "Indexer"
+
+  - variable: indexer.resources.requests.memory
+    label: "Memória mínima do Indexer"
+    type: string
+    default: "1Gi"
+    group: "Indexer"
+
+  - variable: indexer.resources.limits.memory
+    label: "Memória máxima do Indexer"
+    type: string
+    default: "2Gi"
+    group: "Indexer"
+
+  - variable: indexer.javaOpts
+    label: "Java Opts do Indexer"
+    description: "Heap size JVM. Deve ser ~50% da memória limit."
+    type: string
+    default: "-Xms1g -Xmx1g -Dlog4j2.formatMsgNoLookups=true"
+    group: "Indexer"
+
+  # ==========================================================================
+  # MANAGER - WORKERS
+  # ==========================================================================
+  - variable: manager.worker.replicas
+    label: "Réplicas dos Workers"
+    description: "Número de workers para receber eventos dos agentes. Mínimo 1, recomendado 2."
+    type: enum
+    options:
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+    default: "2"
+    group: "Manager"
+
+  - variable: manager.master.storage.size
+    label: "Storage do Manager Master"
+    type: string
+    default: "10Gi"
+    group: "Manager"
+
+  - variable: manager.worker.storage.size
+    label: "Storage dos Manager Workers"
+    type: string
+    default: "10Gi"
+    group: "Manager"
+
+  # ==========================================================================
+  # SERVIÇOS DOS AGENTES
+  # ==========================================================================
+  - variable: service.events.type
+    label: "Tipo do Service de Eventos (porta 1514)"
+    description: "LoadBalancer para acesso externo dos agentes. Requer MetalLB ou cloud LB."
+    type: enum
+    options:
+      - ClusterIP
+      - NodePort
+      - LoadBalancer
+    default: "ClusterIP"
+    group: "Acesso dos Agentes"
+
+  - variable: service.registration.type
+    label: "Tipo do Service de Registro (porta 1515)"
+    description: "LoadBalancer para registro externo de agentes."
+    type: enum
+    options:
+      - ClusterIP
+      - NodePort
+      - LoadBalancer
+    default: "ClusterIP"
+    group: "Acesso dos Agentes"
+
+  # ==========================================================================
+  # INGRESS - DASHBOARD
+  # ==========================================================================
+  - variable: ingress.enabled
+    label: "Habilitar Ingress para o Dashboard"
+    type: boolean
+    default: false
+    group: "Ingress / Dashboard"
+    show_subquestion_if: true
+    subquestions:
+      - variable: ingress.className
+        label: "Ingress Class"
+        description: "Nome do Ingress Controller (ex: nginx, traefik)"
+        type: string
+        default: "nginx"
+      - variable: ingress.dashboard.host
+        label: "Hostname do Dashboard"
+        description: "FQDN para acessar o Dashboard. Ex: wazuh.empresa.com"
+        type: hostname
+        required: true
+
+  # ==========================================================================
+  # TRAEFIK (IngressRouteTCP para portas TCP dos agentes)
+  # ==========================================================================
+  - variable: ingress.traefik.enabled
+    label: "Habilitar Traefik IngressRouteTCP"
+    description: "Usa Traefik para expor as portas TCP 1514/1515 dos agentes"
+    type: boolean
+    default: false
+    group: "Traefik TCP"
+    show_subquestion_if: true
+    subquestions:
+      - variable: ingress.traefik.entrypoints.events
+        label: "Entrypoint Traefik para Eventos (1514)"
+        type: string
+        default: "wazuh-1514"
+      - variable: ingress.traefik.entrypoints.registration
+        label: "Entrypoint Traefik para Registro (1515)"
+        type: string
+        default: "wazuh-1515"
+
+  # ==========================================================================
+  # SEGURANÇA
+  # ==========================================================================
+  - variable: networkPolicy.enabled
+    label: "Habilitar Network Policies"
+    description: "Restringe o tráfego entre componentes (recomendado em produção)"
+    type: boolean
+    default: false
+    group: "Segurança"
+
+  # ==========================================================================
+  # CERTIFICADOS
+  # ==========================================================================
+  - variable: certs.generate
+    label: "Gerar Certificados Automaticamente"
+    description: "Um Job Kubernetes gera os certs TLS no primeiro install. Requer acesso à internet."
+    type: boolean
+    default: true
+    group: "Certificados"
+
+  - variable: certs.subject.country
+    label: "País (2 letras)"
+    type: string
+    default: "BR"
+    group: "Certificados"
+
+  - variable: certs.subject.organization
+    label: "Organização"
+    type: string
+    default: "MinhaEmpresa"
+    group: "Certificados"
