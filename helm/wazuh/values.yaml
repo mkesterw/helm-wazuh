@@ -113,19 +113,13 @@ certs:
     organization: "MinhaEmpresa"
     organizationalUnit: "SOC"
 
-  # Imagem para geração dos certs (necessita openssl e shell)
-  # Para ambientes air-gapped, use uma imagem local com openssl
+  # Imagem Alpine para geração dos certs e criação dos Secrets
+  # Alpine tem: /bin/sh, curl (nativo), openssl (via apk add)
+  # Os Secrets são criados via Kubernetes REST API (sem kubectl)
+  # Para air-gapped: use uma imagem interna que contenha openssl e curl
   certgenImage:
     repository: alpine
     tag: "3.19"
-    pullPolicy: IfNotPresent
-
-  # Imagem kubectl para criação dos Secrets
-  # Use "rancher/kubectl" em ambientes Rancher (imagem já disponível no cluster)
-  # Use "bitnami/kubectl:latest" para clusters genéricos com acesso ao Docker Hub
-  kubectlImage:
-    repository: rancher/kubectl
-    tag: "v1.31.4"
     pullPolicy: IfNotPresent
 
 # =============================================================================
