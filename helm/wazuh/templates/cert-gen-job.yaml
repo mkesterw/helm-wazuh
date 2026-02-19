@@ -10,7 +10,7 @@ Usa um único container Alpine com:
 Vantagens desta abordagem:
   - Alpine tem /bin/sh (sem erro "no such file or directory")
   - Não depende de imagens kubectl (distroless, pull errors, etc.)
-  - curl está disponível nativamente no Alpine
+  - openssl e curl instalados via apk add no início do script
   - Usa o ServiceAccount token montado para autenticar na K8s API
 
 O Job é idempotente: verifica se Secrets já existem antes de criar.
@@ -57,6 +57,12 @@ data:
     mkdir -p "$WORKDIR"
 
     # -------------------------------------------------------------------------
+    # Instalar dependências PRIMEIRO (curl e openssl não vêm no Alpine base)
+    # -------------------------------------------------------------------------
+    echo "=== Instalando dependências (openssl + curl) ==="
+    apk add --no-cache openssl curl
+
+    # -------------------------------------------------------------------------
     # Verificar Secrets existentes (idempotência)
     # -------------------------------------------------------------------------
     echo "=== Verificando Secrets existentes ==="
@@ -74,12 +80,6 @@ data:
       echo "Secrets '$INDEXER_SECRET' e '$DASHBOARD_SECRET' já existem. Nada a fazer."
       exit 0
     fi
-
-    # -------------------------------------------------------------------------
-    # Instalar OpenSSL
-    # -------------------------------------------------------------------------
-    echo "=== Instalando OpenSSL ==="
-    apk add --no-cache openssl
 
     # -------------------------------------------------------------------------
     # Root CA
@@ -233,7 +233,7 @@ data:
 
     echo "=== Job de certificados concluído com sucesso! ==="
 ---
-# Job: container único Alpine (tem /bin/sh + curl nativo + openssl via apk)
+# Job: container único Alpine - instala openssl e curl via apk add no início do script
 apiVersion: batch/v1
 kind: Job
 metadata:

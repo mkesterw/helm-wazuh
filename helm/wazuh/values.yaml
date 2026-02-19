@@ -114,9 +114,9 @@ certs:
     organizationalUnit: "SOC"
 
   # Imagem Alpine para geração dos certs e criação dos Secrets
-  # Alpine tem: /bin/sh, curl (nativo), openssl (via apk add)
+  # O script instala openssl e curl via: apk add --no-cache openssl curl
   # Os Secrets são criados via Kubernetes REST API (sem kubectl)
-  # Para air-gapped: use uma imagem interna que contenha openssl e curl
+  # Para air-gapped: use uma imagem interna que já contenha openssl e curl
   certgenImage:
     repository: alpine
     tag: "3.19"
