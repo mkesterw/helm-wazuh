@@ -11,7 +11,7 @@ questions:
     label: "Versão do Wazuh"
     description: "Versão do Wazuh Manager, Indexer e Dashboard"
     type: string
-    default: "5.0.0"
+    default: "4.14.2"
     group: "Imagens"
 
   # ==========================================================================

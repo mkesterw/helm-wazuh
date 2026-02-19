@@ -20,15 +20,15 @@ namespaceCreate: false
 image:
   manager:
     repository: wazuh/wazuh-manager
-    tag: "5.0.0"
+    tag: "4.14.2"
     pullPolicy: IfNotPresent
   indexer:
     repository: wazuh/wazuh-indexer
-    tag: "5.0.0"
+    tag: "4.14.2"
     pullPolicy: IfNotPresent
   dashboard:
     repository: wazuh/wazuh-dashboard
-    tag: "5.0.0"
+    tag: "4.14.2"
     pullPolicy: IfNotPresent
 
 imagePullSecrets: []
