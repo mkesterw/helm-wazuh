@@ -1,0 +1,41 @@
+{{- if .Values.certs.generate }}
+# Role com permissão mínima para o Job de geração de certificados
+# Pode apenas criar e verificar Secrets neste namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "wazuh.certgen.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cert-gen
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "wazuh.certgen.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cert-gen
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "wazuh.certgen.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "wazuh.certgen.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

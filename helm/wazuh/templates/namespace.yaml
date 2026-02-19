@@ -1,0 +1,10 @@
+{{- if .Values.namespaceCreate }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    # Label útil para NetworkPolicies que precisam referenciar o namespace
+    kubernetes.io/metadata.name: {{ .Release.Namespace }}
+{{- end }}

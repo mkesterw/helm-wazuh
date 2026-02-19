@@ -1,0 +1,64 @@
+# =============================================================================
+# values-minimal.yaml - Ambiente de desenvolvimento / teste
+# Recursos mínimos para rodar em clusters com pouca capacidade
+# =============================================================================
+# Uso: helm install wazuh ./helm/wazuh -n wazuh-dev --create-namespace -f helm/wazuh/values-minimal.yaml
+
+fullnameOverride: "wazuh"
+
+storageClass:
+  create: true
+  name: wazuh-storage
+  provisioner: "rancher.io/local-path"
+
+indexer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "300m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+  storage:
+    size: "5Gi"
+  javaOpts: "-Xms512m -Xmx512m -Dlog4j2.formatMsgNoLookups=true"
+  podAntiAffinity:
+    enabled: false
+
+manager:
+  master:
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    storage:
+      size: "5Gi"
+  worker:
+    replicas: 1
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    storage:
+      size: "5Gi"
+    podAntiAffinity:
+      enabled: false
+
+dashboard:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "300m"
+      memory: "512Mi"
+
+networkPolicy:
+  enabled: false

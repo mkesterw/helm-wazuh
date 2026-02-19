@@ -1,0 +1,280 @@
+{{- if .Values.certs.generate }}
+{{/*
+=============================================================================
+Job de Geração de Certificados TLS - Pre-install Hook
+=============================================================================
+Este Job roda ANTES dos outros recursos serem criados (pre-install hook).
+Ele gera todos os certificados TLS necessários e os armazena em Secrets:
+  - <fullname>-indexer-certs: Root CA + certs do Indexer + Admin + Manager
+  - <fullname>-dashboard-certs: Root CA + cert do Dashboard
+
+O Job é idempotente: se os Secrets já existirem, ele não faz nada.
+Isso permite upgrades sem re-gerar certs.
+
+ATENÇÃO: Requer acesso à internet para: apk add --no-cache openssl
+Para ambientes air-gapped: use certs.generate: false e forneça os Secrets.
+=============================================================================
+*/}}
+
+# ConfigMap com os scripts de geração de certificados
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "wazuh.certgen.fullname" . }}-scripts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cert-gen
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-6"
+    "helm.sh/hook-delete-policy": before-hook-creation
+data:
+  generate-certs.sh: |
+    #!/bin/sh
+    set -e
+
+    echo "=== Instalando OpenSSL ==="
+    apk add --no-cache openssl
+
+    COUNTRY="{{ .Values.certs.subject.country }}"
+    STATE="{{ .Values.certs.subject.state }}"
+    LOCALITY="{{ .Values.certs.subject.locality }}"
+    ORG="{{ .Values.certs.subject.organization }}"
+    OU="{{ .Values.certs.subject.organizationalUnit }}"
+    DAYS="{{ .Values.certs.daysValid }}"
+    INDEXER_SVC="{{ include "wazuh.indexer.svc" . }}"
+    DASHBOARD_SVC="{{ include "wazuh.dashboard.svc" . }}"
+
+    WORKDIR="/certs"
+    mkdir -p "$WORKDIR"
+
+    echo "=== Gerando Root CA ==="
+    openssl genrsa -out "$WORKDIR/root-ca-key.pem" 2048
+    openssl req -new -x509 -sha256 \
+      -days "$DAYS" \
+      -key "$WORKDIR/root-ca-key.pem" \
+      -out "$WORKDIR/root-ca.pem" \
+      -subj "/C=${COUNTRY}/ST=${STATE}/L=${LOCALITY}/O=${ORG}/OU=${OU}/CN=Root CA"
+
+    echo "=== Gerando cert Admin (OpenSearch) ==="
+    openssl genrsa -out "$WORKDIR/admin-key.pem" 2048
+    openssl req -new -sha256 \
+      -key "$WORKDIR/admin-key.pem" \
+      -out "$WORKDIR/admin.csr" \
+      -subj "/C=${COUNTRY}/ST=${STATE}/L=${LOCALITY}/O=${ORG}/OU=${OU}/CN=admin"
+    openssl x509 -req -sha256 -days "$DAYS" \
+      -in "$WORKDIR/admin.csr" \
+      -CA "$WORKDIR/root-ca.pem" \
+      -CAkey "$WORKDIR/root-ca-key.pem" \
+      -CAcreateserial \
+      -out "$WORKDIR/admin.pem"
+
+    echo "=== Gerando cert do Indexer (com SANs para cluster) ==="
+    cat > /tmp/indexer-san.cnf << SANCNF
+    [req]
+    req_extensions = v3_req
+    distinguished_name = req_dn
+    [req_dn]
+    [v3_req]
+    subjectAltName = DNS:${INDEXER_SVC},DNS:*.${INDEXER_SVC},IP:127.0.0.1
+    SANCNF
+    openssl genrsa -out "$WORKDIR/indexer-key.pem" 2048
+    openssl req -new -sha256 \
+      -key "$WORKDIR/indexer-key.pem" \
+      -out "$WORKDIR/indexer.csr" \
+      -subj "/C=${COUNTRY}/ST=${STATE}/L=${LOCALITY}/O=${ORG}/OU=${OU}/CN=indexer"
+    openssl x509 -req -sha256 -days "$DAYS" \
+      -extensions v3_req \
+      -extfile /tmp/indexer-san.cnf \
+      -in "$WORKDIR/indexer.csr" \
+      -CA "$WORKDIR/root-ca.pem" \
+      -CAkey "$WORKDIR/root-ca-key.pem" \
+      -CAcreateserial \
+      -out "$WORKDIR/indexer.pem"
+
+    echo "=== Gerando cert do Manager (server cert para agentes) ==="
+    openssl genrsa -out "$WORKDIR/server-key.pem" 2048
+    openssl req -new -sha256 \
+      -key "$WORKDIR/server-key.pem" \
+      -out "$WORKDIR/server.csr" \
+      -subj "/C=${COUNTRY}/ST=${STATE}/L=${LOCALITY}/O=${ORG}/OU=${OU}/CN=wazuh-manager"
+    openssl x509 -req -sha256 -days "$DAYS" \
+      -in "$WORKDIR/server.csr" \
+      -CA "$WORKDIR/root-ca.pem" \
+      -CAkey "$WORKDIR/root-ca-key.pem" \
+      -CAcreateserial \
+      -out "$WORKDIR/server.pem"
+
+    echo "=== Gerando cert do Dashboard ==="
+    cat > /tmp/dashboard-san.cnf << SANCNF2
+    [req]
+    req_extensions = v3_req
+    distinguished_name = req_dn
+    [req_dn]
+    [v3_req]
+    subjectAltName = DNS:${DASHBOARD_SVC},DNS:dashboard,IP:127.0.0.1
+    SANCNF2
+    openssl genrsa -out "$WORKDIR/dashboard-key.pem" 2048
+    openssl req -new -sha256 \
+      -key "$WORKDIR/dashboard-key.pem" \
+      -out "$WORKDIR/dashboard.csr" \
+      -subj "/C=${COUNTRY}/ST=${STATE}/L=${LOCALITY}/O=${ORG}/OU=${OU}/CN=dashboard"
+    openssl x509 -req -sha256 -days "$DAYS" \
+      -extensions v3_req \
+      -extfile /tmp/dashboard-san.cnf \
+      -in "$WORKDIR/dashboard.csr" \
+      -CA "$WORKDIR/root-ca.pem" \
+      -CAkey "$WORKDIR/root-ca-key.pem" \
+      -CAcreateserial \
+      -out "$WORKDIR/dashboard.pem"
+
+    echo "=== Certificados gerados com sucesso ==="
+    ls -la "$WORKDIR"
+
+  create-secrets.sh: |
+    #!/bin/sh
+    set -e
+
+    NAMESPACE="${NAMESPACE}"
+    INDEXER_SECRET="${INDEXER_SECRET}"
+    DASHBOARD_SECRET="${DASHBOARD_SECRET}"
+    WORKDIR="/certs"
+
+    echo "=== Verificando se Secrets já existem ==="
+
+    INDEXER_EXISTS=$(kubectl get secret "$INDEXER_SECRET" -n "$NAMESPACE" 2>/dev/null && echo "yes" || echo "no")
+    DASHBOARD_EXISTS=$(kubectl get secret "$DASHBOARD_SECRET" -n "$NAMESPACE" 2>/dev/null && echo "yes" || echo "no")
+
+    if [ "$INDEXER_EXISTS" = "yes" ] && [ "$DASHBOARD_EXISTS" = "yes" ]; then
+      echo "Secrets $INDEXER_SECRET e $DASHBOARD_SECRET já existem. Pulando geração."
+      exit 0
+    fi
+
+    echo "=== Aguardando certificados do init container ==="
+    # Aguarda até os certs estarem disponíveis
+    MAX_WAIT=120
+    WAITED=0
+    while [ ! -f "$WORKDIR/root-ca.pem" ]; do
+      if [ "$WAITED" -ge "$MAX_WAIT" ]; then
+        echo "ERRO: Timeout aguardando certificados do init container!"
+        exit 1
+      fi
+      echo "Aguardando certificados... ($WAITED/$MAX_WAIT)"
+      sleep 5
+      WAITED=$((WAITED + 5))
+    done
+
+    echo "=== Criando Secret: $INDEXER_SECRET ==="
+    if [ "$INDEXER_EXISTS" = "no" ]; then
+      kubectl create secret generic "$INDEXER_SECRET" \
+        --namespace="$NAMESPACE" \
+        --from-file=root-ca.pem="$WORKDIR/root-ca.pem" \
+        --from-file=indexer.pem="$WORKDIR/indexer.pem" \
+        --from-file=indexer-key.pem="$WORKDIR/indexer-key.pem" \
+        --from-file=admin.pem="$WORKDIR/admin.pem" \
+        --from-file=admin-key.pem="$WORKDIR/admin-key.pem" \
+        --from-file=server.pem="$WORKDIR/server.pem" \
+        --from-file=server-key.pem="$WORKDIR/server-key.pem"
+      echo "Secret $INDEXER_SECRET criado com sucesso."
+    else
+      echo "Secret $INDEXER_SECRET já existe, pulando."
+    fi
+
+    echo "=== Criando Secret: $DASHBOARD_SECRET ==="
+    if [ "$DASHBOARD_EXISTS" = "no" ]; then
+      kubectl create secret generic "$DASHBOARD_SECRET" \
+        --namespace="$NAMESPACE" \
+        --from-file=root-ca.pem="$WORKDIR/root-ca.pem" \
+        --from-file=dashboard.pem="$WORKDIR/dashboard.pem" \
+        --from-file=dashboard-key.pem="$WORKDIR/dashboard-key.pem"
+      echo "Secret $DASHBOARD_SECRET criado com sucesso."
+    else
+      echo "Secret $DASHBOARD_SECRET já existe, pulando."
+    fi
+
+    echo "=== Secrets de certificados criados com sucesso! ==="
+---
+# Job que executa o processo de geração de certificados
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "wazuh.certgen.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cert-gen
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    # Deleta o Job antigo antes de criar um novo (permite re-rodar no upgrade)
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "wazuh.labels" . | nindent 8 }}
+        app.kubernetes.io/component: cert-gen
+    spec:
+      serviceAccountName: {{ include "wazuh.certgen.serviceAccountName" . }}
+      restartPolicy: OnFailure
+      # Volume compartilhado entre init container e container principal
+      volumes:
+        - name: certs
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: {{ include "wazuh.certgen.fullname" . }}-scripts
+            defaultMode: 0755
+      # Init container: gera os certificados usando OpenSSL
+      initContainers:
+        - name: cert-generator
+          image: "{{ .Values.certs.certgenImage.repository }}:{{ .Values.certs.certgenImage.tag }}"
+          imagePullPolicy: {{ .Values.certs.certgenImage.pullPolicy }}
+          command: ["/bin/sh", "/scripts/generate-certs.sh"]
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+            - name: scripts
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+      # Container principal: usa kubectl para criar os Secrets
+      containers:
+        - name: secret-creator
+          image: "{{ .Values.certs.kubectlImage.repository }}:{{ .Values.certs.kubectlImage.tag }}"
+          imagePullPolicy: {{ .Values.certs.kubectlImage.pullPolicy }}
+          command: ["/bin/sh", "/scripts/create-secrets.sh"]
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: INDEXER_SECRET
+              value: {{ include "wazuh.secret.indexerCerts" . }}
+            - name: DASHBOARD_SECRET
+              value: {{ include "wazuh.secret.dashboardCerts" . }}
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+            - name: scripts
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

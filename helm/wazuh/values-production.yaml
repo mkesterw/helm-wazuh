@@ -1,0 +1,105 @@
+# =============================================================================
+# values-production.yaml - Ambiente de produção
+# Recursos adequados para cargas de trabalho reais
+# =============================================================================
+# Uso: helm install wazuh-cliente1 ./helm/wazuh \
+#        -n cliente1 --create-namespace \
+#        -f helm/wazuh/values-production.yaml \
+#        --set secrets.indexer.password=SenhaForte123! \
+#        --set secrets.dashboard.password=SenhaForte456! \
+#        --set secrets.wazuhApi.password=SenhaForte789! \
+#        --set secrets.authdPass=SenhaAuthd! \
+#        --set secrets.clusterKey=ChaveCluster32Caracteres12345678
+
+fullnameOverride: "wazuh"
+
+storageClass:
+  # Em produção com Rancher, recomendado usar Longhorn ou storage class do provedor
+  create: false
+  name: longhorn  # ou o nome da sua StorageClass de produção
+
+indexer:
+  replicas: 3
+  resources:
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+  storage:
+    size: "50Gi"
+  javaOpts: "-Xms2g -Xmx2g -Dlog4j2.formatMsgNoLookups=true"
+  podAntiAffinity:
+    enabled: true
+    type: required  # Força nós distintos para HA real
+
+manager:
+  master:
+    resources:
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    storage:
+      size: "50Gi"
+  worker:
+    replicas: 2
+    resources:
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    storage:
+      size: "50Gi"
+    podAntiAffinity:
+      enabled: true
+      type: preferred
+
+dashboard:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "300m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+service:
+  events:
+    type: LoadBalancer
+    annotations:
+      # Para Rancher com MetalLB ou cloud LB, configure aqui
+      # metallb.universe.tf/address-pool: wazuh-pool
+  registration:
+    type: LoadBalancer
+    annotations: {}
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+  dashboard:
+    host: "wazuh.seudominio.com"  # ALTERE para seu domínio
+    tls:
+      enabled: false  # SSL é gerenciado pelo próprio Wazuh Dashboard
+
+networkPolicy:
+  enabled: true
+
+certs:
+  generate: true
+  daysValid: 3650
+  subject:
+    country: "BR"
+    state: "SP"
+    locality: "SaoPaulo"
+    organization: "MinhaEmpresa"
+    organizationalUnit: "SOC"

@@ -1,0 +1,305 @@
+{{/*
+=============================================================================
+Network Policies - Segmentação de Rede do Wazuh
+=============================================================================
+Quando networkPolicy.enabled: true, implementa o princípio de menor privilégio:
+  - Bloqueia todo tráfego por padrão (default-deny-all)
+  - Permite apenas as conexões necessárias para cada componente
+  - Permite resolução DNS (kube-dns)
+
+Topologia de comunicação permitida:
+  Dashboard  →  Indexer (9200) + Manager API (55000)
+  Manager    →  Indexer (9200)
+  Workers    →  Master (1516, 55000)
+  Master     →  Workers (1516) [cluster bidirecional]
+  Agents     →  Workers (1514) + Master (1515) [de qualquer origem]
+  Indexer    →  Indexer (9300) [cluster interno]
+=============================================================================
+*/}}
+{{- if .Values.networkPolicy.enabled }}
+
+# Bloqueia todo tráfego de entrada e saída por padrão
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-default-deny-all
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Permite resolução DNS para todos os pods (necessário para funcionamento)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-allow-dns
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Permite tráfego de saída do Indexer para outros nós do cluster (9300)
+# e recebe consultas REST (9200) do Dashboard e Manager
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-indexer-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "wazuh.indexer.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # Comunicação entre nós do cluster OpenSearch (9300)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wazuh-indexer
+      ports:
+        - protocol: TCP
+          port: 9300
+    # Comunicação REST entre nós do indexer (9200)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wazuh-indexer
+      ports:
+        - protocol: TCP
+          port: 9200
+---
+# Controla quem pode acessar o Indexer
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-indexer-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "wazuh.indexer.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Dashboard acessa indexer na porta 9200
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wazuh-dashboard
+      ports:
+        - protocol: TCP
+          port: 9200
+    # Manager master acessa indexer na porta 9200
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wazuh-manager
+              node-type: master
+      ports:
+        - protocol: TCP
+          port: 9200
+    # Nós do indexer se comunicam entre si (9300 para cluster)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wazuh-indexer
+      ports:
+        - protocol: TCP
+          port: 9300
+---
+# Controla o tráfego de saída do Dashboard
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-dashboard-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "wazuh.dashboard.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # Dashboard → Indexer (OpenSearch REST API)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wazuh-indexer
+      ports:
+        - protocol: TCP
+          port: 9200
+    # Dashboard → Manager Master (API REST do Wazuh)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wazuh-manager
+              node-type: master
+      ports:
+        - protocol: TCP
+          port: 55000
+---
+# Controla tráfego de entrada no Manager Master
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-manager-master-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "wazuh.manager.master.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Dashboard acessa a API do Manager (55000)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wazuh-dashboard
+      ports:
+        - protocol: TCP
+          port: 55000
+    # Workers se comunicam com o master via cluster (1516)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wazuh-manager
+      ports:
+        - protocol: TCP
+          port: 1516
+    # Agentes externos se registram no master (1515)
+    # Permite qualquer origem pois agentes vêm de fora do cluster
+    - ports:
+        - protocol: TCP
+          port: 1515
+---
+# Controla tráfego de saída do Manager Master
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-manager-master-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "wazuh.manager.master.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # Master → Indexer (envio de alertas)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wazuh-indexer
+      ports:
+        - protocol: TCP
+          port: 9200
+    # Master → Workers (cluster Wazuh)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wazuh-manager
+      ports:
+        - protocol: TCP
+          port: 1516
+    # Master pode fazer requisições HTTPS externas (integrações, threat intel, etc.)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# Controla tráfego de entrada nos Workers
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-manager-worker-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "wazuh.manager.worker.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Agentes enviam eventos para os workers (1514)
+    # Permite qualquer origem pois agentes vêm de fora do cluster
+    - ports:
+        - protocol: TCP
+          port: 1514
+    # Master se comunica com workers via cluster (1516)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wazuh-manager
+      ports:
+        - protocol: TCP
+          port: 1516
+---
+# Controla tráfego de saída dos Workers
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wazuh.fullname" . }}-manager-worker-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "wazuh.manager.worker.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # Workers → Master (cluster sync e API)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wazuh-manager
+      ports:
+        - protocol: TCP
+          port: 1516
+        - protocol: TCP
+          port: 55000
+    # Workers podem fazer requisições HTTPS externas
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+{{- end }}

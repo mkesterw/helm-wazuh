@@ -1,0 +1,235 @@
+{{/*
+=============================================================================
+Wazuh Indexer - StatefulSet (OpenSearch)
+=============================================================================
+Cluster de 3 nós por padrão (configurável via indexer.replicas).
+Para HA: use indexer.podAntiAffinity.enabled: true (distribui em nós distintos).
+=============================================================================
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "wazuh.indexer.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: indexer
+spec:
+  replicas: {{ .Values.indexer.replicas }}
+  selector:
+    matchLabels:
+      {{- include "wazuh.indexer.selectorLabels" . | nindent 6 }}
+  # Nome do headless service (deve corresponder ao service abaixo)
+  serviceName: {{ include "wazuh.indexer.svc" . }}
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "wazuh.indexer.selectorLabels" . | nindent 8 }}
+      {{- with .Values.indexer.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "wazuh.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.indexer.podSecurityContext | nindent 8 }}
+
+      # Anti-afinidade para distribuir réplicas em nós físicos distintos (HA)
+      {{- if .Values.indexer.podAntiAffinity.enabled }}
+      affinity:
+        {{- if .Values.indexer.affinity }}
+        {{- toYaml .Values.indexer.affinity | nindent 8 }}
+        {{- else }}
+        podAntiAffinity:
+          {{- if eq .Values.indexer.podAntiAffinity.type "required" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  {{- include "wazuh.indexer.selectorLabels" . | nindent 18 }}
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "wazuh.indexer.selectorLabels" . | nindent 20 }}
+          {{- end }}
+        {{- end }}
+      {{- else if .Values.indexer.affinity }}
+      affinity:
+        {{- toYaml .Values.indexer.affinity | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.indexer.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.indexer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      volumes:
+        - name: indexer-certs
+          secret:
+            secretName: {{ include "wazuh.secret.indexerCerts" . }}
+            defaultMode: 0600
+        {{- with .Values.indexer.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+      initContainers:
+        # Corrige permissões do volume de dados
+        - name: fix-permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 1000:1000 /var/lib/wazuh-indexer"]
+          volumeMounts:
+            - name: wazuh-indexer
+              mountPath: /var/lib/wazuh-indexer
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+        # Aumenta vm.max_map_count necessário para OpenSearch
+        - name: sysctl
+          image: busybox:1.36
+          command: ["sysctl", "-w", "vm.max_map_count=262144"]
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+
+      containers:
+        - name: wazuh-indexer
+          image: "{{ .Values.image.indexer.repository }}:{{ .Values.image.indexer.tag }}"
+          imagePullPolicy: {{ .Values.image.indexer.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.indexer.containerSecurityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.indexer.resources | nindent 12 }}
+          ports:
+            - name: indexer-rest
+              containerPort: 9200
+              protocol: TCP
+            - name: indexer-nodes
+              containerPort: 9300
+              protocol: TCP
+          env:
+            - name: bootstrap.memory_lock
+              value: "false"
+            - name: network.host
+              value: "0.0.0.0"
+            # Nome do nó = nome do pod (ex: release-indexer-0)
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Nó gerenciador inicial do cluster (primeiro pod)
+            - name: cluster.initial_cluster_manager_nodes
+              value: {{ printf "%s-0" (include "wazuh.indexer.fullname" .) | quote }}
+            # Lista de hosts para descoberta do cluster
+            - name: discovery.seed_hosts
+              value: {{ include "wazuh.indexer.seedHosts" . | quote }}
+            - name: node.max_local_storage_nodes
+              value: {{ .Values.indexer.replicas | quote }}
+            - name: plugins.security.allow_default_init_securityindex
+              value: "true"
+            # DN dos nós do indexer (deve coincidir com o CN do certificado)
+            - name: NODES_DN
+              value: "CN=indexer,OU={{ .Values.certs.subject.organizationalUnit }},O={{ .Values.certs.subject.organization }},L={{ .Values.certs.subject.locality }},C={{ .Values.certs.subject.country }}"
+            - name: OPENSEARCH_JAVA_OPTS
+              value: {{ .Values.indexer.javaOpts | quote }}
+            - name: DISCOVERY_SERVICE
+              value: {{ include "wazuh.indexer.svc" . }}
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DISABLE_INSTALL_DEMO_CONFIG
+              value: "true"
+            {{- with .Values.indexer.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            # Dados do indexer (persistido via PVC)
+            - name: wazuh-indexer
+              mountPath: /var/lib/wazuh-indexer
+            # Certificados TLS
+            - name: indexer-certs
+              mountPath: /usr/share/wazuh-indexer/config/certs/indexer-key.pem
+              subPath: indexer-key.pem
+              readOnly: true
+            - name: indexer-certs
+              mountPath: /usr/share/wazuh-indexer/config/certs/indexer.pem
+              subPath: indexer.pem
+              readOnly: true
+            - name: indexer-certs
+              mountPath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+              subPath: root-ca.pem
+              readOnly: true
+            - name: indexer-certs
+              mountPath: /usr/share/wazuh-indexer/config/certs/admin.pem
+              subPath: admin.pem
+              readOnly: true
+            - name: indexer-certs
+              mountPath: /usr/share/wazuh-indexer/config/certs/admin-key.pem
+              subPath: admin-key.pem
+              readOnly: true
+            {{- with .Values.indexer.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+              scheme: HTTPS
+              httpHeaders:
+                - name: Authorization
+                  value: Basic YWRtaW46YWRtaW4=
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+              scheme: HTTPS
+              httpHeaders:
+                - name: Authorization
+                  value: Basic YWRtaW46YWRtaW4=
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 5
+
+  # PersistentVolumeClaim template para dados do indexer
+  volumeClaimTemplates:
+    - metadata:
+        name: wazuh-indexer
+        labels:
+          {{- include "wazuh.labels" . | nindent 10 }}
+          app.kubernetes.io/component: indexer
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ include "wazuh.storageClass" . }}
+        resources:
+          requests:
+            storage: {{ .Values.indexer.storage.size }}

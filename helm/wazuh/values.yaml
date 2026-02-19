@@ -1,0 +1,315 @@
+# =============================================================================
+# Wazuh Helm Chart - values.yaml
+# =============================================================================
+# Para multi-tenant: instale cada cliente em seu próprio namespace:
+#   helm install wazuh ./helm/wazuh -n cliente1 --create-namespace -f values-cliente1.yaml
+#
+# Dica: use fullnameOverride: "wazuh" para manter nomes de recursos simples
+#       quando cada cliente tem seu próprio namespace.
+# =============================================================================
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Cria o namespace automaticamente (alternativa: use --create-namespace no helm)
+namespaceCreate: false
+
+# =============================================================================
+# Imagens
+# =============================================================================
+image:
+  manager:
+    repository: wazuh/wazuh-manager
+    tag: "5.0.0"
+    pullPolicy: IfNotPresent
+  indexer:
+    repository: wazuh/wazuh-indexer
+    tag: "5.0.0"
+    pullPolicy: IfNotPresent
+  dashboard:
+    repository: wazuh/wazuh-dashboard
+    tag: "5.0.0"
+    pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# =============================================================================
+# StorageClass
+# =============================================================================
+storageClass:
+  # Se create: false, use o nome de uma StorageClass existente no cluster
+  create: true
+  name: wazuh-storage
+  # Rancher RKE2/K3s (local-path-provisioner padrão)
+  provisioner: "rancher.io/local-path"
+  # Para Longhorn (recomendado em produção com Rancher):
+  #   create: false
+  #   name: longhorn
+  # Para EKS:
+  #   provisioner: kubernetes.io/aws-ebs
+  #   parameters:
+  #     type: gp3
+  #     encrypted: "true"
+  reclaimPolicy: Retain
+  volumeBindingMode: WaitForFirstConsumer
+  parameters: {}
+
+# =============================================================================
+# Secrets / Credenciais
+# IMPORTANTE: Altere TODAS as senhas padrão antes de usar em produção!
+# =============================================================================
+secrets:
+  # Credenciais do Wazuh Indexer (OpenSearch admin)
+  indexer:
+    username: "admin"
+    password: "admin"
+    # Se não vazio, usa um Secret existente em vez de criar um novo
+    existingSecret: ""
+
+  # Credenciais do Dashboard (kibanaserver)
+  dashboard:
+    username: "kibanaserver"
+    password: "kibanaserver"
+    existingSecret: ""
+
+  # Credenciais da API do Wazuh
+  wazuhApi:
+    username: "wazuh-wui"
+    password: "MyS3cr37P450r.*-"
+    existingSecret: ""
+
+  # Senha para registro de agentes (authd)
+  authdPass: "W4z0hAuthD!Pass"
+  authdExistingSecret: ""
+
+  # Chave do cluster Wazuh (32 caracteres exatos)
+  clusterKey: "123a45bc67def891gh23i45jk67l8mn9"
+  clusterKeyExistingSecret: ""
+
+# =============================================================================
+# Certificados TLS
+# =============================================================================
+certs:
+  # Se true: um Job pre-install gera os certs automaticamente.
+  # Se false: forneça os nomes dos Secrets existentes abaixo.
+  generate: true
+
+  # Apenas quando generate: false - forneça Secrets existentes:
+  existingSecrets:
+    # Secret deve ter: root-ca.pem, indexer.pem, indexer-key.pem,
+    #                  admin.pem, admin-key.pem, server.pem, server-key.pem
+    indexerCerts: ""
+    # Secret deve ter: root-ca.pem, dashboard.pem, dashboard-key.pem
+    dashboardCerts: ""
+
+  # Duração dos certificados gerados (em dias)
+  daysValid: 3650
+
+  # Subject dos certificados gerados
+  subject:
+    country: "BR"
+    state: "SP"
+    locality: "SaoPaulo"
+    organization: "MinhaEmpresa"
+    organizationalUnit: "SOC"
+
+  # Imagem para geração dos certs (necessita openssl e shell)
+  # Para ambientes air-gapped, use uma imagem local com openssl
+  certgenImage:
+    repository: alpine
+    tag: "3.19"
+    pullPolicy: IfNotPresent
+
+  # Imagem kubectl para criação dos Secrets
+  kubectlImage:
+    repository: bitnami/kubectl
+    tag: "1.31.0"
+    pullPolicy: IfNotPresent
+
+# =============================================================================
+# Wazuh Manager - Master
+# =============================================================================
+manager:
+  master:
+    replicas: 1
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+    storage:
+      size: "10Gi"
+    podAnnotations: {}
+    podSecurityContext:
+      fsGroup: 101
+    containerSecurityContext:
+      capabilities:
+        add: ["SYS_CHROOT"]
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    extraEnv: []
+    extraVolumes: []
+    extraVolumeMounts: []
+
+  # =============================================================================
+  # Wazuh Manager - Workers
+  # =============================================================================
+  worker:
+    replicas: 2
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+    storage:
+      size: "10Gi"
+    podAnnotations: {}
+    podSecurityContext:
+      fsGroup: 101
+    containerSecurityContext:
+      capabilities:
+        add: ["SYS_CHROOT"]
+    # Anti-afinidade para distribuir workers em nós diferentes
+    podAntiAffinity:
+      enabled: true
+      type: preferred  # preferred ou required
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    extraEnv: []
+    extraVolumes: []
+    extraVolumeMounts: []
+
+# =============================================================================
+# Wazuh Indexer (OpenSearch)
+# =============================================================================
+indexer:
+  replicas: 3
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+  storage:
+    size: "10Gi"
+  # Java heap size (deve ser ~50% da memória limit)
+  javaOpts: "-Xms1g -Xmx1g -Dlog4j2.formatMsgNoLookups=true"
+  podAnnotations: {}
+  podSecurityContext:
+    fsGroup: 1000
+  containerSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    capabilities:
+      add: ["SYS_CHROOT"]
+  # Anti-afinidade para HA (nós do indexer em hosts distintos)
+  podAntiAffinity:
+    enabled: true
+    type: preferred  # preferred ou required
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
+
+# =============================================================================
+# Wazuh Dashboard
+# =============================================================================
+dashboard:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  podAnnotations: {}
+  podSecurityContext: {}
+  containerSecurityContext: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
+
+# =============================================================================
+# Serviços
+# =============================================================================
+service:
+  dashboard:
+    type: ClusterIP
+    port: 443
+    annotations: {}
+
+  api:
+    type: ClusterIP
+    port: 55000
+    annotations: {}
+
+  # Porta de eventos dos agentes (workers)
+  events:
+    type: ClusterIP
+    port: 1514
+    # Para acesso externo direto (sem Ingress TCP):
+    # type: LoadBalancer
+    annotations: {}
+
+  # Porta de registro de agentes (master)
+  registration:
+    type: ClusterIP
+    port: 1515
+    # Para acesso externo direto (sem Ingress TCP):
+    # type: LoadBalancer
+    annotations: {}
+
+# =============================================================================
+# Ingress - Dashboard HTTPS
+# =============================================================================
+ingress:
+  enabled: false
+  # Para Rancher com NGINX Ingress Controller:
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+  dashboard:
+    host: "wazuh.exemplo.com"
+    tls:
+      enabled: false
+      secretName: ""
+
+  # Ingress TCP para portas de agentes (requer configuração especial no controller)
+  # Para Traefik (Rancher Traefik ou standalone):
+  traefik:
+    enabled: false
+    entrypoints:
+      events: "wazuh-1514"
+      registration: "wazuh-1515"
+      dashboard: "websecure"
+    # IPs permitidos no dashboard (0.0.0.0/0 = todos)
+    dashboardAllowedIPs:
+      - "0.0.0.0/0"
+
+# =============================================================================
+# Network Policies
+# =============================================================================
+networkPolicy:
+  enabled: false
+
+# =============================================================================
+# ServiceAccount
+# =============================================================================
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}

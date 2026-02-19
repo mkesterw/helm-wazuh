@@ -1,0 +1,19 @@
+{{- if .Values.storageClass.create }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.storageClass.name }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+  annotations:
+    # Não deletar a StorageClass ao fazer helm uninstall (protege dados)
+    helm.sh/resource-policy: keep
+provisioner: {{ .Values.storageClass.provisioner }}
+reclaimPolicy: {{ .Values.storageClass.reclaimPolicy | default "Retain" }}
+volumeBindingMode: {{ .Values.storageClass.volumeBindingMode | default "WaitForFirstConsumer" }}
+allowVolumeExpansion: true
+{{- if .Values.storageClass.parameters }}
+parameters:
+  {{- toYaml .Values.storageClass.parameters | nindent 2 }}
+{{- end }}
+{{- end }}

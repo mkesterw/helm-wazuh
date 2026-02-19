@@ -1,0 +1,150 @@
+{{/*
+=============================================================================
+Ingress - Wazuh Dashboard (HTTPS)
+=============================================================================
+Suporta dois modos:
+  1. NGINX Ingress Controller (padrão Rancher) com ssl-passthrough
+  2. Traefik IngressRouteTCP (Rancher Traefik ou standalone)
+
+NOTA: As portas TCP 1514 e 1515 não suportam Ingress HTTP padrão.
+Para agentes externos, use service.events.type: LoadBalancer e
+service.registration.type: LoadBalancer, ou configure Traefik abaixo.
+=============================================================================
+*/}}
+
+{{- if and .Values.ingress.enabled (not .Values.ingress.traefik.enabled) }}
+# Ingress NGINX para o Dashboard (ssl-passthrough - TLS terminado no Dashboard)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "wazuh.fullname" . }}-dashboard
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingress-dashboard
+  annotations:
+    {{- if .Values.ingress.className }}
+    kubernetes.io/ingress.class: {{ .Values.ingress.className | quote }}
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.dashboard.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "wazuh.dashboard.svc" . }}
+                port:
+                  number: {{ .Values.service.dashboard.port }}
+  {{- if and .Values.ingress.dashboard.tls.enabled .Values.ingress.dashboard.tls.secretName }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.dashboard.host | quote }}
+      secretName: {{ .Values.ingress.dashboard.tls.secretName }}
+  {{- end }}
+{{- end }}
+
+{{/*
+=============================================================================
+Traefik IngressRouteTCP - Dashboard, Eventos e Registro
+=============================================================================
+Requer Traefik com entrypoints configurados para as portas 1514 e 1515.
+Veja a documentação do Traefik para configurar entrypoints customizados.
+
+Exemplo de configuração do Traefik (helm values):
+  ports:
+    wazuh-1514:
+      port: 1514
+      expose: true
+      exposedPort: 1514
+      protocol: TCP
+    wazuh-1515:
+      port: 1515
+      expose: true
+      exposedPort: 1515
+      protocol: TCP
+=============================================================================
+*/}}
+
+{{- if and .Values.ingress.enabled .Values.ingress.traefik.enabled }}
+# IngressRouteTCP para o Dashboard (TLS passthrough)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: {{ include "wazuh.fullname" . }}-dashboard
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik-ingress-dashboard
+spec:
+  entryPoints:
+    - {{ .Values.ingress.traefik.entrypoints.dashboard }}
+  routes:
+    - match: HostSNI({{ .Values.ingress.dashboard.host | quote }})
+      middlewares:
+        - name: {{ include "wazuh.fullname" . }}-ip-allowlist
+      services:
+        - name: {{ include "wazuh.dashboard.svc" . }}
+          port: {{ .Values.service.dashboard.port }}
+  tls:
+    passthrough: true
+---
+# IngressRouteTCP para eventos dos agentes (porta 1514)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: {{ include "wazuh.fullname" . }}-events
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik-ingress-events
+spec:
+  entryPoints:
+    - {{ .Values.ingress.traefik.entrypoints.events }}
+  routes:
+    - match: HostSNI(`*`)
+      services:
+        - name: {{ include "wazuh.manager.events.svc" . }}
+          port: {{ .Values.service.events.port }}
+---
+# IngressRouteTCP para registro de agentes (porta 1515)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: {{ include "wazuh.fullname" . }}-registration
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik-ingress-registration
+spec:
+  entryPoints:
+    - {{ .Values.ingress.traefik.entrypoints.registration }}
+  routes:
+    - match: HostSNI(`*`)
+      services:
+        - name: {{ include "wazuh.manager.registration.svc" . }}
+          port: {{ .Values.service.registration.port }}
+---
+# MiddlewareTCP para controle de acesso ao Dashboard por IP
+apiVersion: traefik.io/v1alpha1
+kind: MiddlewareTCP
+metadata:
+  name: {{ include "wazuh.fullname" . }}-ip-allowlist
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+spec:
+  ipWhiteList:
+    sourceRange:
+      {{- range .Values.ingress.traefik.dashboardAllowedIPs }}
+      - {{ . | quote }}
+      {{- end }}
+{{- end }}

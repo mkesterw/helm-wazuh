@@ -1,0 +1,249 @@
+{{/*
+=============================================================================
+Wazuh Manager - Master StatefulSet
+=============================================================================
+O nó master é responsável por:
+  - Gerenciamento do cluster Wazuh (porta 1516)
+  - Registro de novos agentes via authd (porta 1515)
+  - API REST do Wazuh (porta 55000)
+  - Recebe eventos sincronizados dos workers e envia ao Indexer
+
+Réplicas: sempre 1 (arquitetura Wazuh atual)
+=============================================================================
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "wazuh.manager.master.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: manager-master
+spec:
+  replicas: {{ .Values.manager.master.replicas }}
+  selector:
+    matchLabels:
+      {{- include "wazuh.manager.master.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "wazuh.manager.cluster.svc" . }}
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "wazuh.manager.master.selectorLabels" . | nindent 8 }}
+      {{- with .Values.manager.master.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "wazuh.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.manager.master.podSecurityContext | nindent 8 }}
+
+      {{- with .Values.manager.master.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.manager.master.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.manager.master.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      volumes:
+        # Certificados TLS para comunicação com o Indexer e agentes
+        - name: wazuh-server-certs
+          secret:
+            secretName: {{ include "wazuh.secret.indexerCerts" . }}
+        # Senha de registro de agentes (authd)
+        - name: wazuh-authd-pass
+          secret:
+            secretName: {{ include "wazuh.secret.authdPass" . }}
+        {{- with .Values.manager.master.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+      # Init container: copia configurações padrão para o PVC se estiver vazio
+      initContainers:
+        - name: init-wazuh-etc
+          image: "{{ .Values.image.manager.repository }}:{{ .Values.image.manager.tag }}"
+          imagePullPolicy: {{ .Values.image.manager.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              if [ -z "$(ls -A /pvc-etc)" ]; then
+                echo "Inicializando configurações do Wazuh Manager Master..."
+                cp -a /var/ossec/etc/* /pvc-etc/
+                echo "Configurações copiadas com sucesso."
+              else
+                echo "Configurações já existem, pulando inicialização."
+              fi
+          volumeMounts:
+            - name: wazuh-manager-master
+              mountPath: /pvc-etc
+              subPath: wazuh/var/ossec/etc
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+
+      containers:
+        - name: wazuh-manager
+          image: "{{ .Values.image.manager.repository }}:{{ .Values.image.manager.tag }}"
+          imagePullPolicy: {{ .Values.image.manager.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.manager.master.containerSecurityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.manager.master.resources | nindent 12 }}
+          ports:
+            - name: registration
+              containerPort: 1515
+              protocol: TCP
+            - name: cluster
+              containerPort: 1516
+              protocol: TCP
+            - name: api
+              containerPort: 55000
+              protocol: TCP
+          env:
+            # Endereço do Wazuh Indexer
+            - name: WAZUH_INDEXER_HOSTS
+              value: "{{ include "wazuh.indexer.svc" . }}:9200"
+            # Identificação do nó no cluster Wazuh
+            - name: WAZUH_NODE_NAME
+              value: "master-node"
+            - name: WAZUH_NODE_TYPE
+              value: "master"
+            - name: WAZUH_CLUSTER_BIND_ADDR
+              value: "0.0.0.0"
+            # Nome do headless service do cluster Wazuh
+            - name: WAZUH_CLUSTER_NODES
+              value: {{ include "wazuh.manager.cluster.svc" . | quote }}
+            # Credenciais do indexer para envio de alertas
+            - name: INDEXER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wazuh.secret.indexerCred" . }}
+                  key: username
+            - name: INDEXER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wazuh.secret.indexerCred" . }}
+                  key: password
+            # Certificados TLS
+            - name: SSL_CERTIFICATE_AUTHORITIES
+              value: /var/ossec/etc/certs/root-ca.pem
+            - name: SSL_CERTIFICATE
+              value: /var/ossec/etc/certs/server.pem
+            - name: SSL_KEY
+              value: /var/ossec/etc/certs/server-key.pem
+            # Credenciais da API do Wazuh
+            - name: API_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wazuh.secret.apiCred" . }}
+                  key: username
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wazuh.secret.apiCred" . }}
+                  key: password
+            # Chave do cluster Wazuh (autenticação entre master e workers)
+            - name: WAZUH_CLUSTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wazuh.secret.clusterKey" . }}
+                  key: key
+            {{- with .Values.manager.master.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            # Senha de registro (authd)
+            - name: wazuh-authd-pass
+              mountPath: /wazuh-config-mount/etc/authd.pass
+              subPath: authd.pass
+              readOnly: true
+            # Configurações persistidas (ossec.conf, regras, decoders, etc.)
+            - name: wazuh-manager-master
+              mountPath: /var/ossec/api/configuration
+              subPath: wazuh/var/ossec/api/configuration
+            - name: wazuh-manager-master
+              mountPath: /var/ossec/etc
+              subPath: wazuh/var/ossec/etc
+            # Certificados TLS
+            - name: wazuh-server-certs
+              mountPath: /var/ossec/etc/certs/root-ca.pem
+              subPath: root-ca.pem
+              readOnly: true
+            - name: wazuh-server-certs
+              mountPath: /var/ossec/etc/certs/server.pem
+              subPath: server.pem
+              readOnly: true
+            - name: wazuh-server-certs
+              mountPath: /var/ossec/etc/certs/server-key.pem
+              subPath: server-key.pem
+              readOnly: true
+            # Logs e dados persistidos
+            - name: wazuh-manager-master
+              mountPath: /var/ossec/logs
+              subPath: wazuh/var/ossec/logs
+            - name: wazuh-manager-master
+              mountPath: /var/ossec/queue
+              subPath: wazuh/var/ossec/queue
+            - name: wazuh-manager-master
+              mountPath: /var/ossec/var/multigroups
+              subPath: wazuh/var/ossec/var/multigroups
+            - name: wazuh-manager-master
+              mountPath: /var/ossec/active-response/bin
+              subPath: wazuh/var/ossec/active-response/bin
+            - name: wazuh-manager-master
+              mountPath: /var/ossec/wodles
+              subPath: wazuh/var/ossec/wodles
+            {{- with .Values.manager.master.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "/var/ossec/bin/wazuh-control status | grep -q 'is running'"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 10
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "/var/ossec/bin/wazuh-control status | grep -q 'is running'"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+
+  # PVC template para dados persistidos do manager master
+  volumeClaimTemplates:
+    - metadata:
+        name: wazuh-manager-master
+        labels:
+          {{- include "wazuh.labels" . | nindent 10 }}
+          app.kubernetes.io/component: manager-master
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ include "wazuh.storageClass" . }}
+        resources:
+          requests:
+            storage: {{ .Values.manager.master.storage.size }}

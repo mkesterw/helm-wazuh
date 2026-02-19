@@ -1,0 +1,104 @@
+{{/*
+=============================================================================
+Wazuh Manager - Services
+=============================================================================
+4 services para o Wazuh Manager:
+
+1. wazuh-cluster (Headless): comunicação interna master <-> workers (1516)
+2. wazuh-api: acesso à REST API do manager master (55000)
+3. wazuh-events: recebimento de eventos dos agentes via workers (1514)
+4. wazuh-registration: registro de novos agentes via master (1515)
+=============================================================================
+*/}}
+
+# Headless Service para comunicação do cluster Wazuh (master <-> workers)
+# Os pods se encontram via DNS: release-manager-master-0.release-cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wazuh.manager.cluster.svc" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: manager-cluster
+spec:
+  clusterIP: None
+  selector:
+    {{- include "wazuh.manager.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: cluster
+      port: 1516
+      targetPort: 1516
+      protocol: TCP
+---
+# Service da API do Wazuh (acesso ao master na porta 55000)
+# Usado pelo Dashboard e por integrações externas
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wazuh.manager.api.svc" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: manager-api
+  {{- with .Values.service.api.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.api.type }}
+  selector:
+    {{- include "wazuh.manager.master.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ .Values.service.api.port }}
+      targetPort: 55000
+      protocol: TCP
+---
+# Service de eventos dos agentes (workers recebem na porta 1514)
+# Configure como LoadBalancer para acesso externo dos agentes
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wazuh.manager.events.svc" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: manager-events
+  {{- with .Values.service.events.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.events.type }}
+  selector:
+    {{- include "wazuh.manager.worker.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: agents-events
+      port: {{ .Values.service.events.port }}
+      targetPort: 1514
+      protocol: TCP
+---
+# Service de registro de agentes (master recebe na porta 1515)
+# Configure como LoadBalancer para registro externo de agentes
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wazuh.manager.registration.svc" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: manager-registration
+  {{- with .Values.service.registration.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.registration.type }}
+  selector:
+    {{- include "wazuh.manager.master.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: registration
+      port: {{ .Values.service.registration.port }}
+      targetPort: 1515
+      protocol: TCP

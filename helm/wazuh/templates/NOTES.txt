@@ -1,0 +1,79 @@
+===========================================================================
+  Wazuh {{ .Chart.AppVersion }} instalado com sucesso!
+  Release: {{ .Release.Name }} | Namespace: {{ .Release.Namespace }}
+===========================================================================
+
+AGUARDE: Os pods podem levar alguns minutos para inicializar.
+Verifique o status com:
+
+  kubectl get pods -n {{ .Release.Namespace }} -w
+
+COMPONENTES IMPLANTADOS:
+  - Wazuh Indexer:         {{ .Values.indexer.replicas }} réplica(s)
+  - Wazuh Manager Master:  {{ .Values.manager.master.replicas }} réplica(s)
+  - Wazuh Manager Worker:  {{ .Values.manager.worker.replicas }} réplica(s)
+  - Wazuh Dashboard:       {{ .Values.dashboard.replicas }} réplica(s)
+
+{{- if .Values.certs.generate }}
+
+CERTIFICADOS: Gerados automaticamente pelo Job pre-install.
+  Verifique com: kubectl get secrets -n {{ .Release.Namespace }} | grep certs
+
+{{- else }}
+
+CERTIFICADOS: Usando Secrets existentes configurados em values.yaml.
+
+{{- end }}
+
+ACESSO AO DASHBOARD:
+{{- if .Values.ingress.enabled }}
+  URL: https://{{ .Values.ingress.dashboard.host }}
+{{- else }}
+  Para acessar o dashboard via port-forward:
+
+    kubectl port-forward svc/{{ include "wazuh.dashboard.svc" . }} 8443:443 -n {{ .Release.Namespace }}
+
+  Acesse: https://localhost:8443
+{{- end }}
+
+  Usuário padrão: admin / admin
+  IMPORTANTE: Altere as credenciais padrão imediatamente!
+
+REGISTRO DE AGENTES:
+  Endereço para registrar agentes:
+{{- if eq .Values.service.registration.type "LoadBalancer" }}
+  Aguarde o IP externo: kubectl get svc {{ include "wazuh.manager.registration.svc" . }} -n {{ .Release.Namespace }}
+  Porta: {{ .Values.service.registration.port }}
+{{- else }}
+  Serviço: {{ include "wazuh.manager.registration.svc" . }}.{{ .Release.Namespace }}:{{ .Values.service.registration.port }}
+  (Configure Ingress TCP ou use NodePort/LoadBalancer para acesso externo)
+{{- end }}
+
+ENVIO DE EVENTOS DOS AGENTES:
+{{- if eq .Values.service.events.type "LoadBalancer" }}
+  Aguarde o IP externo: kubectl get svc {{ include "wazuh.manager.events.svc" . }} -n {{ .Release.Namespace }}
+  Porta: {{ .Values.service.events.port }}
+{{- else }}
+  Serviço: {{ include "wazuh.manager.events.svc" . }}.{{ .Release.Namespace }}:{{ .Values.service.events.port }}
+{{- end }}
+
+API DO WAZUH:
+  kubectl port-forward svc/{{ include "wazuh.manager.api.svc" . }} 55000:55000 -n {{ .Release.Namespace }}
+  curl -k -u admin:admin https://localhost:55000
+
+MULTI-TENANT - Para adicionar um novo cliente:
+  helm install wazuh-cliente2 ./helm/wazuh \
+    -n cliente2 --create-namespace \
+    -f helm/wazuh/values-production.yaml \
+    --set secrets.indexer.password=SenhaNova \
+    --set secrets.clusterKey=ChaveUnicaPorCliente123456789012
+
+UPGRADE:
+  helm upgrade {{ .Release.Name }} ./helm/wazuh -n {{ .Release.Namespace }} -f values-producao.yaml
+
+DESINSTALAÇÃO:
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
+  # ATENÇÃO: Os Secrets de certificados NÃO são deletados (proteção de dados)
+  # Para remover: kubectl delete secret -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }}
+
+===========================================================================
