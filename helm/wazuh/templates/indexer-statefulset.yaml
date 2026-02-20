@@ -307,24 +307,20 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           readinessProbe:
-            httpGet:
-              path: /_cluster/health
-              port: 9200
-              scheme: HTTPS
-              httpHeaders:
-                - name: Authorization
-                  value: Basic YWRtaW46YWRtaW4=
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - 'curl -ks -u "admin:${OPENSEARCH_INITIAL_ADMIN_PASSWORD}" https://localhost:9200/_cluster/health | grep -q status'
             initialDelaySeconds: 90
             periodSeconds: 20
             failureThreshold: 10
           livenessProbe:
-            httpGet:
-              path: /_cluster/health
-              port: 9200
-              scheme: HTTPS
-              httpHeaders:
-                - name: Authorization
-                  value: Basic YWRtaW46YWRtaW4=
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - 'curl -ks -u "admin:${OPENSEARCH_INITIAL_ADMIN_PASSWORD}" https://localhost:9200/_cluster/health | grep -q status'
             initialDelaySeconds: 120
             periodSeconds: 30
             failureThreshold: 5

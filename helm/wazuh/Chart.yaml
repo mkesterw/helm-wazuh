@@ -6,7 +6,7 @@ description: |
   Componentes: Wazuh Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard.
 
 type: application
-version: 0.1.11
+version: 0.1.12
 appVersion: "5.0.0"
 
 keywords:
