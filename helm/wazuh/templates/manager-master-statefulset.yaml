@@ -243,7 +243,7 @@ spec:
                 - /bin/sh
                 - -c
                 - "/var/ossec/bin/wazuh-control status | grep -q 'is running'"
-            initialDelaySeconds: 30
+            initialDelaySeconds: 120
             periodSeconds: 15
             failureThreshold: 10
           livenessProbe:
@@ -252,7 +252,7 @@ spec:
                 - /bin/sh
                 - -c
                 - "/var/ossec/bin/wazuh-control status | grep -q 'is running'"
-            initialDelaySeconds: 60
+            initialDelaySeconds: 120
             periodSeconds: 30
             failureThreshold: 5
 
