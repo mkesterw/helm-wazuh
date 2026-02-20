@@ -126,7 +126,7 @@ spec:
               fi
 
               echo "Copiando opensearch-security config de $SRC ..."
-              cp -a "$SRC/." /security-config/ || { echo "WARN: cp falhou, saindo."; exit 0; }
+              cp -r "$SRC/." /security-config/ || { echo "WARN: cp falhou, saindo."; exit 0; }
 
               # 2. Gerar hash bcrypt da senha do admin via hash.sh da propria imagem
               HASH_SH="/usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh"
