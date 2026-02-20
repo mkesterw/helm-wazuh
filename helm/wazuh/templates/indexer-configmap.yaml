@@ -65,3 +65,7 @@ data:
     plugins.security.restapi.roles_enabled:
       - "all_access"
       - "security_rest_api_access"
+
+    # Compatibilidade com clientes Elasticsearch 7.x (ex: Filebeat 7.x)
+    # Faz o OpenSearch reportar-se como ES 7.10.2 e aceitar _type no bulk API
+    compatibility.override_main_response_version: true

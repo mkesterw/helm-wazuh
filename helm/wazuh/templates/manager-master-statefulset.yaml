@@ -67,6 +67,10 @@ spec:
         - name: wazuh-authd-pass
           secret:
             secretName: {{ include "wazuh.secret.authdPass" . }}
+        # Filebeat config com credenciais via env vars (evita hardcode na imagem)
+        - name: filebeat-config
+          configMap:
+            name: {{ include "wazuh.fullname" . }}-manager-filebeat
         {{- with .Values.manager.master.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -194,6 +198,11 @@ spec:
             - name: wazuh-server-certs
               mountPath: /var/ossec/etc/certs/server-key.pem
               subPath: server-key.pem
+              readOnly: true
+            # Filebeat config com env vars (sobrescreve o baked-in com admin:admin)
+            - name: filebeat-config
+              mountPath: /etc/filebeat/filebeat.yml
+              subPath: filebeat.yml
               readOnly: true
             # Logs e dados persistidos
             - name: wazuh-manager-master

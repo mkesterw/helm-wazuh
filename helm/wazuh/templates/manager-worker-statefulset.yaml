@@ -86,6 +86,10 @@ spec:
         - name: wazuh-server-certs
           secret:
             secretName: {{ include "wazuh.secret.indexerCerts" . }}
+        # Filebeat config com env vars (sobrescreve o baked-in com admin:admin)
+        - name: filebeat-config
+          configMap:
+            name: {{ include "wazuh.fullname" . }}-manager-filebeat
         {{- with .Values.manager.worker.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -190,6 +194,11 @@ spec:
             - name: wazuh-server-certs
               mountPath: /var/ossec/etc/certs/server-key.pem
               subPath: server-key.pem
+              readOnly: true
+            # Filebeat config com env vars (sobrescreve o baked-in com admin:admin)
+            - name: filebeat-config
+              mountPath: /etc/filebeat/filebeat.yml
+              subPath: filebeat.yml
               readOnly: true
             - name: wazuh-manager-worker
               mountPath: /var/ossec/logs
