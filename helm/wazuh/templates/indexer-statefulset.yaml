@@ -120,39 +120,19 @@ spec:
                 exit 0
               fi
 
+              HASH=$(cat /tmp/admin_hash.txt)
               echo "Atualizando internal_users.yml com hash do admin..."
-              python3 - << 'PYEOF'
-import re
-
-with open('/tmp/admin_hash.txt', 'r') as f:
-    hash_val = f.read().strip()
-
-with open('/security-config/internal_users.yml', 'r') as f:
-    lines = f.readlines()
-
-result = []
-in_admin = False
-hash_replaced = False
-for line in lines:
-    stripped = line.rstrip('\n')
-    # Detecta início do bloco admin:
-    if stripped == 'admin:' or stripped.startswith('admin: '):
-        in_admin = True
-    # Saiu do bloco admin (nova chave no nível raiz)
-    elif in_admin and stripped and not stripped[0].isspace():
-        in_admin = False
-    # Substitui hash dentro do bloco admin
-    if in_admin and not hash_replaced and '  hash:' in stripped:
-        result.append('  hash: "' + hash_val + '"\n')
-        hash_replaced = True
-        continue
-    result.append(line)
-
-with open('/security-config/internal_users.yml', 'w') as f:
-    f.writelines(result)
-
-print('Hash do admin atualizado com sucesso em internal_users.yml')
-PYEOF
+              awk -v newhash="$HASH" '
+                /^admin:/        { in_admin=1 }
+                in_admin && /^[[:alpha:]]/ && !/^admin:/ { in_admin=0 }
+                in_admin && /^  hash:/ && !replaced {
+                  print "  hash: \"" newhash "\""
+                  replaced=1
+                  next
+                }
+                { print }
+              ' /security-config/internal_users.yml > /tmp/users_new.yml \
+                && mv /tmp/users_new.yml /security-config/internal_users.yml
               echo "Security config setup concluído."
           env:
             - name: INDEXER_PASSWORD
