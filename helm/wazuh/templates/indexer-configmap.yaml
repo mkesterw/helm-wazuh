@@ -2,12 +2,14 @@
 =============================================================================
 Wazuh Indexer - ConfigMap (opensearch.yml)
 =============================================================================
-Fornece o arquivo de configuração principal do OpenSearch com as configurações
-do security plugin. As configurações de cluster, rede e descoberta continuam
-sendo passadas via env vars no StatefulSet.
+Fornece o arquivo de configuração principal do OpenSearch.
+A imagem Wazuh escreve env vars no opensearch.yml via entrypoint; como o arquivo
+é montado como readOnly, todas as configurações necessárias devem estar aqui.
 
-IMPORTANTE: As configurações do security plugin (plugins.security.*) DEVEM
-estar no opensearch.yml — o OpenSearch não as aceita via variáveis de ambiente.
+IMPORTANTE:
+- Configurações do security plugin (plugins.security.*) DEVEM estar no opensearch.yml.
+- Configurações de cluster/discovery também devem estar aqui (env vars sozinhas
+  não funcionam quando o arquivo é montado como readOnly pelo ConfigMap).
 =============================================================================
 */}}
 apiVersion: v1
@@ -20,7 +22,19 @@ metadata:
     app.kubernetes.io/component: indexer
 data:
   opensearch.yml: |
+    # Cluster e nó
+    cluster.name: wazuh
+    node.name: ${HOSTNAME}
     network.host: "0.0.0.0"
+
+    # Descoberta do cluster (necessário quando network.host != loopback)
+    cluster.initial_cluster_manager_nodes:
+      - {{ printf "%s-0" (include "wazuh.indexer.fullname" .) }}
+    discovery.seed_hosts:
+      - {{ include "wazuh.indexer.svc" . }}
+
+    # Nós de armazenamento locais (máx por host)
+    node.max_local_storage_nodes: {{ .Values.indexer.replicas }}
 
     # TLS para comunicação HTTP (REST API)
     plugins.security.ssl.http.enabled: true
