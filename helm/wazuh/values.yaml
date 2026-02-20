@@ -228,6 +228,11 @@ indexer:
 # =============================================================================
 dashboard:
   replicas: 1
+  # Para acesso via proxy Rancher (sem Ingress), defina o prefixo do proxy para que
+  # os assets JS/CSS sejam carregados com o caminho correto.
+  # Exemplo: "/api/v1/namespaces/wazuh/services/https:wazuh-dashboard:443/proxy"
+  # Deixe vazio quando usar Ingress (acesso direto por hostname).
+  basePath: ""
   resources:
     requests:
       cpu: "200m"

@@ -38,3 +38,11 @@ data:
     # Sessão / cookies
     opensearch_security.session.ttl: 900000
     opensearch_security.session.keepalive: true
+{{- if .Values.dashboard.basePath }}
+
+    # Proxy reverso: prefixo adicionado a todos os URLs de assets gerados pelo OSD.
+    # Necessário para acesso via proxy Rancher (/api/v1/namespaces/...).
+    # rewriteBasePath: false porque o proxy (Rancher) já strip o prefixo antes de repassar.
+    server.basePath: {{ .Values.dashboard.basePath | quote }}
+    server.rewriteBasePath: false
+{{- end }}
