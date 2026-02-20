@@ -135,10 +135,17 @@ spec:
                 exit 0
               fi
 
+              # hash.sh requer Java. Definir OPENSEARCH_JAVA_HOME apontando para o JDK bundled.
+              # Sem isso, hash.sh imprime warning no stdout e nao gera o hash.
+              export OPENSEARCH_JAVA_HOME="/usr/share/wazuh-indexer/jdk"
+
               echo "Gerando hash bcrypt da senha do admin..."
               ADMIN_HASH=$("$HASH_SH" -p "${INDEXER_PASSWORD}" 2>/dev/null | tail -1)
-              if [ -z "$ADMIN_HASH" ]; then
-                echo "WARN: hash.sh nao gerou hash. Usando internal_users.yml padrao da imagem."
+
+              # Validar que o resultado e um hash bcrypt valido (sempre inicia com $2)
+              if [ -z "$ADMIN_HASH" ] || ! echo "$ADMIN_HASH" | grep -q '^\$2'; then
+                echo "WARN: hash.sh nao gerou hash valido. Output: $ADMIN_HASH"
+                echo "WARN: Usando internal_users.yml padrao da imagem."
                 exit 0
               fi
 
