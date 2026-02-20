@@ -106,23 +106,51 @@ spec:
             - /bin/sh
             - -c
             - |
-              set -e
-              echo "Copiando opensearch-security config para volume compartilhado..."
-              cp -a /usr/share/wazuh-indexer/config/opensearch-security/. /security-config/
+              # Script best-effort: qualquer falha é logada mas não bloqueia o pod.
+              # Suporta Wazuh 4.x e 5.x (paths do opensearch-security diferem entre versões).
 
-              echo "Gerando hash bcrypt da senha do admin..."
-              printf '%s' "${INDEXER_PASSWORD}" > /tmp/admin_pass.txt
-              /usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh \
-                -p "${INDEXER_PASSWORD}" 2>/dev/null | tail -1 > /tmp/admin_hash.txt
+              # 1. Descobrir onde estão os arquivos de security config na imagem
+              SRC=""
+              for d in \
+                "/usr/share/wazuh-indexer/config/opensearch-security" \
+                "/usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig"; do
+                if [ -d "$d" ]; then
+                  SRC="$d"
+                  break
+                fi
+              done
 
-              if [ ! -s /tmp/admin_hash.txt ]; then
-                echo "WARN: hash.sh falhou ou não disponível, usando internal_users.yml padrão da imagem"
+              if [ -z "$SRC" ]; then
+                echo "WARN: opensearch-security dir nao encontrado na imagem. Nenhuma alteracao feita."
                 exit 0
               fi
 
-              HASH=$(cat /tmp/admin_hash.txt)
+              echo "Copiando opensearch-security config de $SRC ..."
+              cp -a "$SRC/." /security-config/ || { echo "WARN: cp falhou, saindo."; exit 0; }
+
+              # 2. Gerar hash bcrypt da senha do admin via hash.sh da propria imagem
+              HASH_SH="/usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh"
+              if [ ! -f "$HASH_SH" ]; then
+                echo "WARN: hash.sh nao encontrado. Usando internal_users.yml padrao da imagem."
+                exit 0
+              fi
+
+              echo "Gerando hash bcrypt da senha do admin..."
+              ADMIN_HASH=$("$HASH_SH" -p "${INDEXER_PASSWORD}" 2>/dev/null | tail -1)
+              if [ -z "$ADMIN_HASH" ]; then
+                echo "WARN: hash.sh nao gerou hash. Usando internal_users.yml padrao da imagem."
+                exit 0
+              fi
+
+              # 3. Atualizar internal_users.yml com o hash gerado
+              USERS_FILE="/security-config/internal_users.yml"
+              if [ ! -f "$USERS_FILE" ]; then
+                echo "WARN: internal_users.yml nao encontrado em /security-config/"
+                exit 0
+              fi
+
               echo "Atualizando internal_users.yml com hash do admin..."
-              awk -v newhash="$HASH" '
+              awk -v newhash="$ADMIN_HASH" '
                 /^admin:/        { in_admin=1 }
                 in_admin && /^[[:alpha:]]/ && !/^admin:/ { in_admin=0 }
                 in_admin && /^  hash:/ && !replaced {
@@ -131,9 +159,9 @@ spec:
                   next
                 }
                 { print }
-              ' /security-config/internal_users.yml > /tmp/users_new.yml \
-                && mv /tmp/users_new.yml /security-config/internal_users.yml
-              echo "Security config setup concluído."
+              ' "$USERS_FILE" > /tmp/users_new.yml \
+                && mv /tmp/users_new.yml "$USERS_FILE"
+              echo "Security config setup concluido."
           env:
             - name: INDEXER_PASSWORD
               valueFrom:
