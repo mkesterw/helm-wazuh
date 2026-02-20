@@ -158,7 +158,7 @@ data:
     distinguished_name = req_dn
     [req_dn]
     [v3_req]
-    subjectAltName = DNS:${DASHBOARD_SVC},DNS:dashboard,IP:127.0.0.1
+    subjectAltName = DNS:${DASHBOARD_SVC},DNS:dashboard,IP:127.0.0.1{{ range .Values.certs.dashboard.extraSANs }},DNS:{{ . }}{{ end }}
     SANCNF2
     openssl genrsa -out "$WORKDIR/dashboard-key.pem" 2048
     openssl req -new -sha256 \

@@ -109,6 +109,12 @@ certs:
     # Secret deve ter: root-ca.pem, dashboard.pem, dashboard-key.pem
     dashboardCerts: ""
 
+  # SANs extras para o certificado do Dashboard.
+  # Adicione aqui o hostname público (Ingress) para evitar erros de certificado no browser.
+  # Exemplo: ["wazuh.centralinformatica.com.br"]
+  dashboard:
+    extraSANs: []
+
   # Duração dos certificados gerados (em dias)
   daysValid: 3650
 
