@@ -87,11 +87,89 @@ spec:
         - name: indexer-config
           configMap:
             name: {{ include "wazuh.indexer.fullname" . }}-config
+        # Volume compartilhado entre init container e main container:
+        # contém o opensearch-security/ com internal_users.yml corrigido
+        - name: security-config
+          emptyDir: {}
         {{- with .Values.indexer.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
 
       initContainers:
+        # Gera o hash bcrypt da senha do admin e atualiza internal_users.yml
+        # Garante que a senha configurada no Secret seja a usada pelo OpenSearch,
+        # independente do default da imagem.
+        - name: setup-security-config
+          image: {{ include "wazuh.image.indexer" . | quote }}
+          imagePullPolicy: {{ .Values.image.indexer.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Copiando opensearch-security config para volume compartilhado..."
+              cp -a /usr/share/wazuh-indexer/config/opensearch-security/. /security-config/
+
+              echo "Gerando hash bcrypt da senha do admin..."
+              printf '%s' "${INDEXER_PASSWORD}" > /tmp/admin_pass.txt
+              /usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh \
+                -p "${INDEXER_PASSWORD}" 2>/dev/null | tail -1 > /tmp/admin_hash.txt
+
+              if [ ! -s /tmp/admin_hash.txt ]; then
+                echo "WARN: hash.sh falhou ou não disponível, usando internal_users.yml padrão da imagem"
+                exit 0
+              fi
+
+              echo "Atualizando internal_users.yml com hash do admin..."
+              python3 - << 'PYEOF'
+import re
+
+with open('/tmp/admin_hash.txt', 'r') as f:
+    hash_val = f.read().strip()
+
+with open('/security-config/internal_users.yml', 'r') as f:
+    lines = f.readlines()
+
+result = []
+in_admin = False
+hash_replaced = False
+for line in lines:
+    stripped = line.rstrip('\n')
+    # Detecta início do bloco admin:
+    if stripped == 'admin:' or stripped.startswith('admin: '):
+        in_admin = True
+    # Saiu do bloco admin (nova chave no nível raiz)
+    elif in_admin and stripped and not stripped[0].isspace():
+        in_admin = False
+    # Substitui hash dentro do bloco admin
+    if in_admin and not hash_replaced and '  hash:' in stripped:
+        result.append('  hash: "' + hash_val + '"\n')
+        hash_replaced = True
+        continue
+    result.append(line)
+
+with open('/security-config/internal_users.yml', 'w') as f:
+    f.writelines(result)
+
+print('Hash do admin atualizado com sucesso em internal_users.yml')
+PYEOF
+              echo "Security config setup concluído."
+          env:
+            - name: INDEXER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wazuh.secret.indexerCred" . }}
+                  key: password
+          volumeMounts:
+            - name: security-config
+              mountPath: /security-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
         # Corrige permissões do volume de dados
         - name: fix-permissions
           image: busybox:1.36
@@ -183,6 +261,9 @@ spec:
               mountPath: /usr/share/wazuh-indexer/config/opensearch.yml
               subPath: opensearch.yml
               readOnly: true
+            # Security config com internal_users.yml atualizado pelo init container
+            - name: security-config
+              mountPath: /usr/share/wazuh-indexer/config/opensearch-security
             # Dados do indexer (persistido via PVC)
             - name: wazuh-indexer
               mountPath: /var/lib/wazuh-indexer
