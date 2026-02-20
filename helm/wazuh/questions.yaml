@@ -7,11 +7,11 @@ questions:
   # ==========================================================================
   # VERSÃO DAS IMAGENS
   # ==========================================================================
-  - variable: image.manager.tag
+  - variable: wazuhVersion
     label: "Versão do Wazuh"
-    description: "Versão do Wazuh Manager, Indexer e Dashboard"
+    description: "Versão global do Wazuh Manager, Indexer e Dashboard. Todos os 3 componentes usarão esta versão."
     type: string
-    default: "4.14.2"
+    default: "5.0.0"
     group: "Imagens"
 
   # ==========================================================================

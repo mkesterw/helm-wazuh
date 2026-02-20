@@ -5,6 +5,27 @@ _helpers.tpl - Template helpers para o Wazuh Helm Chart
 */}}
 
 {{/*
+=============================================================================
+Helpers de imagem - usam wazuhVersion como fallback global
+Se image.<componente>.tag estiver definido, usa ele.
+Caso contrário, usa .Values.wazuhVersion.
+Isso garante que alterar só wazuhVersion atualiza todos os componentes.
+=============================================================================
+*/}}
+
+{{- define "wazuh.image.manager" -}}
+{{- printf "%s:%s" .Values.image.manager.repository (.Values.image.manager.tag | default .Values.wazuhVersion) -}}
+{{- end }}
+
+{{- define "wazuh.image.indexer" -}}
+{{- printf "%s:%s" .Values.image.indexer.repository (.Values.image.indexer.tag | default .Values.wazuhVersion) -}}
+{{- end }}
+
+{{- define "wazuh.image.dashboard" -}}
+{{- printf "%s:%s" .Values.image.dashboard.repository (.Values.image.dashboard.tag | default .Values.wazuhVersion) -}}
+{{- end }}
+
+{{/*
 Nome base do chart
 */}}
 {{- define "wazuh.name" -}}

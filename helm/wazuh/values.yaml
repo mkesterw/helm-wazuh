@@ -15,20 +15,27 @@ fullnameOverride: ""
 namespaceCreate: false
 
 # =============================================================================
+# Versão global do Wazuh
+# Define a versão de Manager, Indexer e Dashboard de uma só vez.
+# Para sobrescrever um componente específico, defina image.<componente>.tag.
+# =============================================================================
+wazuhVersion: "5.0.0"
+
+# =============================================================================
 # Imagens
 # =============================================================================
 image:
   manager:
     repository: wazuh/wazuh-manager
-    tag: "4.14.2"
+    tag: ""  # Se vazio, usa wazuhVersion acima
     pullPolicy: IfNotPresent
   indexer:
     repository: wazuh/wazuh-indexer
-    tag: "4.14.2"
+    tag: ""  # Se vazio, usa wazuhVersion acima
     pullPolicy: IfNotPresent
   dashboard:
     repository: wazuh/wazuh-dashboard
-    tag: "4.14.2"
+    tag: ""  # Se vazio, usa wazuhVersion acima
     pullPolicy: IfNotPresent
 
 imagePullSecrets: []

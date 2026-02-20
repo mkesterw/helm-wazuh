@@ -74,7 +74,7 @@ spec:
       # Init container: copia configurações padrão para o PVC se estiver vazio
       initContainers:
         - name: init-wazuh-etc
-          image: "{{ .Values.image.manager.repository }}:{{ .Values.image.manager.tag }}"
+          image: "{{ include \"wazuh.image.manager\" . }}"
           imagePullPolicy: {{ .Values.image.manager.pullPolicy }}
           command:
             - /bin/sh
@@ -101,7 +101,7 @@ spec:
 
       containers:
         - name: wazuh-manager
-          image: "{{ .Values.image.manager.repository }}:{{ .Values.image.manager.tag }}"
+          image: "{{ include \"wazuh.image.manager\" . }}"
           imagePullPolicy: {{ .Values.image.manager.pullPolicy }}
           securityContext:
             {{- toYaml .Values.manager.master.containerSecurityContext | nindent 12 }}
