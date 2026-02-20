@@ -3,7 +3,32 @@ entries:
   wazuh:
   - apiVersion: v2
     appVersion: 4.x
-    created: "2026-02-20T15:08:40.6948003-04:00"
+    created: "2026-02-20T15:27:52.1339611-04:00"
+    description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
+      Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
+      Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
+    digest: bb64af0534d0548c06551d5d39fcab70467ba85d04d190b853827c7efde06e12
+    home: https://wazuh.com
+    keywords:
+    - security
+    - siem
+    - xdr
+    - wazuh
+    - opensearch
+    - compliance
+    - multi-tenant
+    maintainers:
+    - name: SOC Team
+    name: wazuh
+    sources:
+    - https://github.com/wazuh/wazuh-kubernetes
+    type: application
+    urls:
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.16.tgz
+    version: 0.1.16
+  - apiVersion: v2
+    appVersion: 4.x
+    created: "2026-02-20T15:27:52.1323469-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -24,11 +49,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.15.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.15.tgz
     version: 0.1.15
   - apiVersion: v2
     appVersion: 4.x
-    created: "2026-02-20T15:08:40.6933783-04:00"
+    created: "2026-02-20T15:27:52.1313304-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -49,11 +74,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.14.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.14.tgz
     version: 0.1.14
   - apiVersion: v2
     appVersion: 4.x
-    created: "2026-02-20T15:08:40.6922211-04:00"
+    created: "2026-02-20T15:27:52.1300947-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -74,11 +99,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.13.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.13.tgz
     version: 0.1.13
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.6910484-04:00"
+    created: "2026-02-20T15:27:52.1291344-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -99,11 +124,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.12.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.12.tgz
     version: 0.1.12
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.6904563-04:00"
+    created: "2026-02-20T15:27:52.1281223-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -124,11 +149,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.11.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.11.tgz
     version: 0.1.11
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.6893068-04:00"
+    created: "2026-02-20T15:27:52.1264557-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -149,11 +174,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.10.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.10.tgz
     version: 0.1.10
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.704151-04:00"
+    created: "2026-02-20T15:27:52.1412677-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -174,11 +199,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.9.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.9.tgz
     version: 0.1.9
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.7030349-04:00"
+    created: "2026-02-20T15:27:52.1412677-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -199,11 +224,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.8.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.8.tgz
     version: 0.1.8
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.7018814-04:00"
+    created: "2026-02-20T15:27:52.1402691-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -224,11 +249,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.7.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.7.tgz
     version: 0.1.7
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.7008039-04:00"
+    created: "2026-02-20T15:27:52.1392769-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -249,11 +274,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.6.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.6.tgz
     version: 0.1.6
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.6985583-04:00"
+    created: "2026-02-20T15:27:52.138251-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -274,11 +299,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.5.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.5.tgz
     version: 0.1.5
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.6980161-04:00"
+    created: "2026-02-20T15:27:52.1367073-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -299,11 +324,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.4.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.4.tgz
     version: 0.1.4
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.6966331-04:00"
+    created: "2026-02-20T15:27:52.1360919-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -324,11 +349,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.3.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.3.tgz
     version: 0.1.3
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.6960068-04:00"
+    created: "2026-02-20T15:27:52.1343227-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -349,11 +374,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.2.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.2.tgz
     version: 0.1.2
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.6867871-04:00"
+    created: "2026-02-20T15:27:52.1254561-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -374,11 +399,11 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.1.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.1.tgz
     version: 0.1.1
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T15:08:40.685988-04:00"
+    created: "2026-02-20T15:27:52.1243249-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -399,6 +424,6 @@ entries:
     - https://github.com/wazuh/wazuh-kubernetes
     type: application
     urls:
-    - https://raw.githubusercontent.com/mkesterw/helm-wazuh/main/helm/wazuh-0.1.0.tgz
+    - https://mayconw18.github.io/kubernetes-wazuh/helm/wazuh-0.1.0.tgz
     version: 0.1.0
-generated: "2026-02-20T15:08:40.6843903-04:00"
+generated: "2026-02-20T15:27:52.122276-04:00"
