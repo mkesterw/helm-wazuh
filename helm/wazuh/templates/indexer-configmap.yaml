@@ -1,0 +1,53 @@
+{{/*
+=============================================================================
+Wazuh Indexer - ConfigMap (opensearch.yml)
+=============================================================================
+Fornece o arquivo de configuração principal do OpenSearch com as configurações
+do security plugin. As configurações de cluster, rede e descoberta continuam
+sendo passadas via env vars no StatefulSet.
+
+IMPORTANTE: As configurações do security plugin (plugins.security.*) DEVEM
+estar no opensearch.yml — o OpenSearch não as aceita via variáveis de ambiente.
+=============================================================================
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "wazuh.indexer.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: indexer
+data:
+  opensearch.yml: |
+    network.host: "0.0.0.0"
+
+    # TLS para comunicação HTTP (REST API)
+    plugins.security.ssl.http.enabled: true
+    plugins.security.ssl.http.pemcert_filepath: certs/indexer.pem
+    plugins.security.ssl.http.pemkey_filepath: certs/indexer-key.pem
+    plugins.security.ssl.http.pemtrustedcas_filepath: certs/root-ca.pem
+
+    # TLS para comunicação entre nós do cluster (transport)
+    plugins.security.ssl.transport.pemcert_filepath: certs/indexer.pem
+    plugins.security.ssl.transport.pemkey_filepath: certs/indexer-key.pem
+    plugins.security.ssl.transport.pemtrustedcas_filepath: certs/root-ca.pem
+    plugins.security.ssl.transport.enforce_hostname_verification: false
+    plugins.security.ssl.transport.resolve_hostname: false
+
+    # DN do certificado admin (deve coincidir exatamente com o CN gerado)
+    plugins.security.authcz.admin_dn:
+      - "CN=admin,OU={{ .Values.certs.subject.organizationalUnit }},O={{ .Values.certs.subject.organization }},L={{ .Values.certs.subject.locality }},ST={{ .Values.certs.subject.state }},C={{ .Values.certs.subject.country }}"
+
+    # DN dos nós do indexer (deve coincidir com o CN do cert do indexer)
+    plugins.security.nodes_dn:
+      - "CN=indexer,OU={{ .Values.certs.subject.organizationalUnit }},O={{ .Values.certs.subject.organization }},L={{ .Values.certs.subject.locality }},ST={{ .Values.certs.subject.state }},C={{ .Values.certs.subject.country }}"
+
+    # Inicializa automaticamente o índice de segurança (.opendistro_security)
+    # na primeira execução, sem precisar rodar securityadmin manualmente
+    plugins.security.allow_default_init_securityindex: true
+
+    # Permite acesso à REST API de segurança para roles de admin
+    plugins.security.restapi.roles_enabled:
+      - "all_access"
+      - "security_rest_api_access"

@@ -3,7 +3,32 @@ entries:
   wazuh:
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T08:10:51.3492816-04:00"
+    created: "2026-02-20T08:32:08.4093393-04:00"
+    description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
+      Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
+      Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
+    digest: f53aa6f694360f1ffd4c41fa80119f1dd446fcc597234d2c0838a2d6496eaa83
+    home: https://wazuh.com
+    keywords:
+    - security
+    - siem
+    - xdr
+    - wazuh
+    - opensearch
+    - compliance
+    - multi-tenant
+    maintainers:
+    - name: SOC Team
+    name: wazuh
+    sources:
+    - https://github.com/wazuh/wazuh-kubernetes
+    type: application
+    urls:
+    - wazuh-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: 5.0.0
+    created: "2026-02-20T08:32:08.4069288-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -28,7 +53,7 @@ entries:
     version: 0.1.1
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T08:10:51.3482899-04:00"
+    created: "2026-02-20T08:32:08.4053683-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
@@ -51,4 +76,4 @@ entries:
     urls:
     - wazuh-0.1.0.tgz
     version: 0.1.0
-generated: "2026-02-20T08:10:51.3462742-04:00"
+generated: "2026-02-20T08:32:08.4048001-04:00"
