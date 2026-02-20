@@ -241,6 +241,7 @@ spec:
             initialDelaySeconds: 120
             periodSeconds: 15
             failureThreshold: 10
+            timeoutSeconds: 10
           livenessProbe:
             exec:
               command:
@@ -250,6 +251,7 @@ spec:
             initialDelaySeconds: 120
             periodSeconds: 30
             failureThreshold: 5
+            timeoutSeconds: 10
 
   # PVC template para dados persistidos dos workers
   volumeClaimTemplates:

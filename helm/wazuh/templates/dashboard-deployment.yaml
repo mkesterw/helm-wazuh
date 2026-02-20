@@ -57,6 +57,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
+      # ndots: 1 reduz queries DNS concorrentes (evita EBUSY no Node.js do OSD)
+      # Com FQDNs (>= 1 ponto), o resolver tenta direto sem percorrer o search path
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+
       volumes:
         - name: dashboard-certs
           secret:
@@ -83,9 +90,9 @@ spec:
               containerPort: 443
               protocol: TCP
           env:
-            # URL do Wazuh Indexer - formato JSON array exigido pelo Dashboard
+            # URL do Wazuh Indexer - FQDN evita EBUSY por excesso de queries DNS
             - name: OPENSEARCH_HOSTS
-              value: '["https://{{ include "wazuh.indexer.svc" . }}:9200"]'
+              value: '["https://{{ include "wazuh.indexer.svc" . }}.{{ .Release.Namespace }}.svc.cluster.local:9200"]'
             # Credenciais do indexer
             - name: INDEXER_USERNAME
               valueFrom:
