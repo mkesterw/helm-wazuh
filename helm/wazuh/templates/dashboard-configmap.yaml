@@ -3,8 +3,9 @@
 Wazuh Dashboard - ConfigMap
 =============================================================================
 Fornece o opensearch_dashboards.yml que o Wazuh Dashboard 4.x exige.
-O entrypoint da imagem não gera este arquivo automaticamente via env vars —
-ele precisa ser montado diretamente no container.
+O entrypoint (entrypoint.sh) adiciona opensearch.username/password ao keystore
+a partir das env vars DASHBOARD_USERNAME/DASHBOARD_PASSWORD. Este arquivo
+fornece o restante da configuração que o entrypoint não cobre.
 =============================================================================
 */}}
 apiVersion: v1
@@ -26,12 +27,14 @@ data:
     opensearch.hosts: "https://{{ include "wazuh.indexer.svc" . }}:9200"
     opensearch.ssl.verificationMode: certificate
     opensearch.ssl.certificateAuthorities: ["/usr/share/wazuh-dashboard/config/certs/root-ca.pem"]
-    opensearch.username: "{{ .Values.secrets.dashboard.username }}"
-    opensearch.password: "{{ .Values.secrets.dashboard.password }}"
     opensearch.requestHeadersAllowlist: ["securitytenant", "Authorization"]
 
     opensearch_security.multitenancy.enabled: false
     opensearch_security.readonly_mode.roles: ["kibana_read_only"]
 
-    server.defaultRoute: /app/wazuh
-    uiSettings.overrides.defaultRoute: /app/wazuh
+    # Rota padrão após login (mudou de /app/wazuh para /app/wz-home no Wazuh 4.x)
+    uiSettings.overrides.defaultRoute: /app/wz-home
+
+    # Sessão / cookies
+    opensearch_security.session.ttl: 900000
+    opensearch_security.session.keepalive: true
