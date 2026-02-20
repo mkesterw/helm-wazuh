@@ -95,6 +95,7 @@ spec:
         {{- end }}
 
       # Init container: copia configurações padrão para o PVC se estiver vazio
+      # e corrige ossec.conf (host do indexer + caminhos de certs) em todo restart
       initContainers:
         - name: init-wazuh-etc
           image: {{ include "wazuh.image.manager" . | quote }}
@@ -110,6 +111,19 @@ spec:
               else
                 echo "Configurações já existem, pulando inicialização."
               fi
+              # Corrige ossec.conf sempre: host do indexer e caminhos de certs
+              # Necessário para corrigir configs legadas e novas instalações
+              if [ -f /pvc-etc/ossec.conf ]; then
+                echo "Corrigindo configuração do indexer no ossec.conf..."
+                sed -i "s|https://0.0.0.0:9200|${INDEXER_URL}|g" /pvc-etc/ossec.conf
+                sed -i "s|/etc/filebeat/certs/root-ca\.pem|/var/ossec/etc/certs/root-ca.pem|g" /pvc-etc/ossec.conf
+                sed -i "s|/etc/filebeat/certs/filebeat\.pem|/var/ossec/etc/certs/server.pem|g" /pvc-etc/ossec.conf
+                sed -i "s|/etc/filebeat/certs/filebeat-key\.pem|/var/ossec/etc/certs/server-key.pem|g" /pvc-etc/ossec.conf
+                echo "ossec.conf corrigido com sucesso."
+              fi
+          env:
+            - name: INDEXER_URL
+              value: "https://{{ include "wazuh.indexer.svc" . }}:9200"
           volumeMounts:
             - name: wazuh-manager-worker
               mountPath: /pvc-etc
