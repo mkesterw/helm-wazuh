@@ -118,9 +118,9 @@ spec:
               containerPort: 55000
               protocol: TCP
           env:
-            # Endereço do Wazuh Indexer
-            - name: WAZUH_INDEXER_HOSTS
-              value: "{{ include "wazuh.indexer.svc" . }}:9200"
+            # URL do Wazuh Indexer (Filebeat + ossec.conf usam esta variável)
+            - name: INDEXER_URL
+              value: "https://{{ include "wazuh.indexer.svc" . }}:9200"
             # Identificação do nó no cluster Wazuh
             - name: WAZUH_NODE_NAME
               value: "master-node"

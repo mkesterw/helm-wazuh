@@ -134,8 +134,9 @@ spec:
               containerPort: 1516
               protocol: TCP
           env:
-            - name: WAZUH_INDEXER_HOSTS
-              value: "{{ include "wazuh.indexer.svc" . }}:9200"
+            # URL do Wazuh Indexer (Filebeat + ossec.conf usam esta variável)
+            - name: INDEXER_URL
+              value: "https://{{ include "wazuh.indexer.svc" . }}:9200"
             # Nome do nó = nome do pod (ex: release-manager-worker-0)
             - name: WAZUH_NODE_NAME
               valueFrom:

@@ -80,9 +80,9 @@ spec:
               containerPort: 443
               protocol: TCP
           env:
-            # URL do Wazuh Indexer
+            # URL do Wazuh Indexer - formato JSON array exigido pelo Dashboard
             - name: OPENSEARCH_HOSTS
-              value: "https://{{ include "wazuh.indexer.svc" . }}:9200"
+              value: '["https://{{ include "wazuh.indexer.svc" . }}:9200"]'
             # Credenciais do indexer
             - name: INDEXER_USERNAME
               valueFrom:
