@@ -19,7 +19,7 @@ namespaceCreate: false
 # Define a versão de Manager, Indexer e Dashboard de uma só vez.
 # Para sobrescrever um componente específico, defina image.<componente>.tag.
 # =============================================================================
-wazuhVersion: "5.0.0"
+wazuhVersion: "4.14.2"
 
 # =============================================================================
 # Imagens
