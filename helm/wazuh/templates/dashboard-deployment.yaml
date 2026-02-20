@@ -61,6 +61,9 @@ spec:
         - name: dashboard-certs
           secret:
             secretName: {{ include "wazuh.secret.dashboardCerts" . }}
+        - name: dashboard-config
+          configMap:
+            name: {{ include "wazuh.dashboard.fullname" . }}-config
         {{- with .Values.dashboard.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -131,6 +134,10 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           volumeMounts:
+            - name: dashboard-config
+              mountPath: /usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
+              subPath: opensearch_dashboards.yml
+              readOnly: true
             - name: dashboard-certs
               mountPath: /usr/share/wazuh-dashboard/config/certs/dashboard.pem
               subPath: dashboard.pem
