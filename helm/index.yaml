@@ -3,11 +3,11 @@ entries:
   wazuh:
   - apiVersion: v2
     appVersion: 5.0.0
-    created: "2026-02-20T07:49:49.8075381-04:00"
+    created: "2026-02-20T08:06:19.2562949-04:00"
     description: 'Wazuh Security Platform - SIEM, XDR e Compliance para Kubernetes.
       Suporta deployments multi-tenant com namespace por cliente. Componentes: Wazuh
       Manager (master + workers), Wazuh Indexer (OpenSearch), Wazuh Dashboard. '
-    digest: 1bcf501fcfedf04a0f2a495bed4876c09364e8a38ab430b7b06886999ced93a8
+    digest: 1020f99fc9a0713b43f7ee8b4c7fd97f38e0c15d4b247c4522d5d69c44ce6cdf
     home: https://wazuh.com
     keywords:
     - security
@@ -26,4 +26,4 @@ entries:
     urls:
     - wazuh-0.1.0.tgz
     version: 0.1.0
-generated: "2026-02-20T07:49:49.8059046-04:00"
+generated: "2026-02-20T08:06:19.2531425-04:00"
