@@ -93,7 +93,7 @@ spec:
       # Init container: copia configurações padrão para o PVC se estiver vazio
       initContainers:
         - name: init-wazuh-etc
-          image: "{{ include \"wazuh.image.manager\" . }}"
+          image: {{ include "wazuh.image.manager" . | quote }}
           imagePullPolicy: {{ .Values.image.manager.pullPolicy }}
           command:
             - /bin/sh

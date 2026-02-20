@@ -67,7 +67,7 @@ spec:
 
       containers:
         - name: wazuh-dashboard
-          image: "{{ include \"wazuh.image.dashboard\" . }}"
+          image: {{ include "wazuh.image.dashboard" . | quote }}
           imagePullPolicy: {{ .Values.image.dashboard.pullPolicy }}
           {{- if .Values.dashboard.containerSecurityContext }}
           securityContext:

@@ -119,7 +119,7 @@ spec:
 
       containers:
         - name: wazuh-indexer
-          image: "{{ include \"wazuh.image.indexer\" . }}"
+          image: {{ include "wazuh.image.indexer" . | quote }}
           imagePullPolicy: {{ .Values.image.indexer.pullPolicy }}
           securityContext:
             {{- toYaml .Values.indexer.containerSecurityContext | nindent 12 }}
