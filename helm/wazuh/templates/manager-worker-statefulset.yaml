@@ -120,7 +120,7 @@ spec:
 
       containers:
         - name: wazuh-manager
-          image: "{{ include \"wazuh.image.manager\" . }}"
+          image: {{ include "wazuh.image.manager" . | quote }}
           imagePullPolicy: {{ .Values.image.manager.pullPolicy }}
           securityContext:
             {{- toYaml .Values.manager.worker.containerSecurityContext | nindent 12 }}
