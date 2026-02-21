@@ -75,9 +75,25 @@ Exemplo de configuração do Traefik (helm values):
 */}}
 
 {{- if and .Values.ingress.enabled .Values.ingress.traefik.enabled }}
-# IngressRouteTCP para o Dashboard (TLS passthrough)
+# ServersTransport: Traefik confia no backend HTTPS com cert auto-assinado do dashboard.
+# Necessário porque o dashboard usa cert gerado internamente (não assinado por CA pública).
 apiVersion: traefik.io/v1alpha1
-kind: IngressRouteTCP
+kind: ServersTransport
+metadata:
+  name: {{ include "wazuh.fullname" . }}-backend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wazuh.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik-ingress-dashboard
+spec:
+  insecureSkipVerify: true
+---
+# IngressRoute HTTP para Dashboard.
+# Traefik termina TLS (usando o cert do cluster/Rancher) e faz proxy HTTPS para o backend.
+# Isso resolve o erro "bad_certificate" que ocorre com IngressRouteTCP + passthrough
+# quando o Traefik já possui um certificado ativo para o domínio.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
 metadata:
   name: {{ include "wazuh.fullname" . }}-dashboard
   namespace: {{ .Release.Namespace }}
@@ -88,14 +104,16 @@ spec:
   entryPoints:
     - {{ .Values.ingress.traefik.entrypoints.dashboard }}
   routes:
-    - match: HostSNI({{ .Values.ingress.dashboard.host | quote }})
+    - match: Host({{ .Values.ingress.dashboard.host | quote }})
+      kind: Rule
       middlewares:
         - name: {{ include "wazuh.fullname" . }}-ip-allowlist
       services:
         - name: {{ include "wazuh.dashboard.svc" . }}
           port: {{ .Values.service.dashboard.port }}
-  tls:
-    passthrough: true
+          scheme: https
+          serversTransport: {{ include "wazuh.fullname" . }}-backend
+  tls: {}
 ---
 # IngressRouteTCP para eventos dos agentes (porta 1514)
 apiVersion: traefik.io/v1alpha1
@@ -133,16 +151,16 @@ spec:
         - name: {{ include "wazuh.manager.registration.svc" . }}
           port: {{ .Values.service.registration.port }}
 ---
-# MiddlewareTCP para controle de acesso ao Dashboard por IP
+# Middleware HTTP para controle de acesso ao Dashboard por IP
 apiVersion: traefik.io/v1alpha1
-kind: MiddlewareTCP
+kind: Middleware
 metadata:
   name: {{ include "wazuh.fullname" . }}-ip-allowlist
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "wazuh.labels" . | nindent 4 }}
 spec:
-  ipWhiteList:
+  ipAllowList:
     sourceRange:
       {{- range .Values.ingress.traefik.dashboardAllowedIPs }}
       - {{ . | quote }}
