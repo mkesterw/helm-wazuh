@@ -11,7 +11,7 @@ questions:
     label: "Versão do Wazuh"
     description: "Versão global do Wazuh Manager, Indexer e Dashboard. Todos os 3 componentes usarão esta versão."
     type: string
-    default: "5.0.0"
+    default: "4.14.2"
     group: "Imagens"
 
   # ==========================================================================
@@ -174,34 +174,29 @@ questions:
     group: "Ingress / Dashboard"
     show_subquestion_if: true
     subquestions:
-      - variable: ingress.className
-        label: "Ingress Class"
-        description: "Nome do Ingress Controller (ex: nginx, traefik)"
-        type: string
-        default: "nginx"
       - variable: ingress.dashboard.host
         label: "Hostname do Dashboard"
         description: "FQDN para acessar o Dashboard. Ex: wazuh.empresa.com"
         type: hostname
         required: true
-
-  # ==========================================================================
-  # TRAEFIK (IngressRouteTCP para portas TCP dos agentes)
-  # ==========================================================================
-  - variable: ingress.traefik.enabled
-    label: "Habilitar Traefik IngressRouteTCP"
-    description: "Usa Traefik para expor as portas TCP 1514/1515 dos agentes"
-    type: boolean
-    default: false
-    group: "Traefik TCP"
-    show_subquestion_if: true
-    subquestions:
+      - variable: ingress.traefik.enabled
+        label: "Usar Traefik nativo (K3s / RKE2)"
+        description: "ATIVE se o cluster usa Traefik (K3s padrão). Cria IngressRoute com ServersTransport para o dashboard HTTPS e IngressRouteTCP para agentes (1514/1515). Deixe INATIVO apenas se usar NGINX Ingress Controller."
+        type: boolean
+        default: true
+      - variable: ingress.traefik.entrypoints.dashboard
+        label: "Entrypoint HTTPS do Traefik"
+        description: "Entrypoint do Traefik para HTTPS. Padrão K3s: websecure"
+        type: string
+        default: "websecure"
       - variable: ingress.traefik.entrypoints.events
-        label: "Entrypoint Traefik para Eventos (1514)"
+        label: "Entrypoint Traefik para Eventos dos Agentes (porta 1514)"
+        description: "Entrypoint customizado do Traefik para porta 1514. Deve ser criado manualmente no Traefik."
         type: string
         default: "wazuh-1514"
       - variable: ingress.traefik.entrypoints.registration
-        label: "Entrypoint Traefik para Registro (1515)"
+        label: "Entrypoint Traefik para Registro de Agentes (porta 1515)"
+        description: "Entrypoint customizado do Traefik para porta 1515. Deve ser criado manualmente no Traefik."
         type: string
         default: "wazuh-1515"
 
